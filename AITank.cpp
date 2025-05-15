@@ -7,7 +7,7 @@
 
 AITank::AITank(sf::Vector2f startPosition, Direction direction, float speed, int frameWidth, int frameHeight,int inihp)
         : Tank(startPosition, direction, speed, frameWidth, frameHeight,inihp),
-          m_isMovingToNextTile(false) {
+          m_isMovingToNextTile(false), m_hasStrategicTarget(false) {
     std::cout << "AITank (Tile-based) created. Speed: " << m_speed << std::endl;
 }
 
@@ -34,73 +34,94 @@ void AITank::updateMovementBetweenTiles(sf::Time dt, const Map& map) {
         return;
     }
 
-    // 确保视觉方向与意图方向一致 (如果AI在格子间移动时方向不会被其他逻辑改变，这可能不是必须的)
     if (get_Direction() != m_intendedDirectionForTileMove) {
         setDirection(m_intendedDirectionForTileMove);
     }
 
     sf::Vector2f currentPos = get_position();
-    sf::Vector2f directionToTargetPixel = m_pixelTargetForTileMove - currentPos;
-    float distanceToTargetPixel = std::sqrt(directionToTargetPixel.x * directionToTargetPixel.x + directionToTargetPixel.y * directionToTargetPixel.y);
+    // m_pixelTargetForTileMove 是目标格子的中心，我们用它来判断是否到达，
+    // 但移动本身严格按 m_intendedDirectionForTileMove 进行。
 
-    float arrivalThreshold = 1.5f; // 像素阈值
+    float moveAmountThisFrame = m_speed * dt.asSeconds();
+    sf::Vector2f desiredNextPixelPos = currentPos; // 初始化为当前位置
 
-    if (distanceToTargetPixel <= arrivalThreshold) {
+    bool reachedTargetAxis = false; // 标记在该轴上是否已到达或超过目标
+
+    switch (m_intendedDirectionForTileMove) {
+        case Direction::UP:
+            if (currentPos.y > m_pixelTargetForTileMove.y) { // 还在目标上方 (Y值更大)
+                desiredNextPixelPos.y -= moveAmountThisFrame;
+                if (desiredNextPixelPos.y <= m_pixelTargetForTileMove.y) {
+                    desiredNextPixelPos.y = m_pixelTargetForTileMove.y; // 不超过目标
+                    reachedTargetAxis = true;
+                }
+            } else { // 已经到达或超过
+                desiredNextPixelPos.y = m_pixelTargetForTileMove.y;
+                reachedTargetAxis = true;
+            }
+            desiredNextPixelPos.x = m_pixelTargetForTileMove.x; // 强制X轴对齐到目标格子的X中心 (重要!)
+            break;
+        case Direction::DOWN:
+            if (currentPos.y < m_pixelTargetForTileMove.y) { // 还在目标下方 (Y值更小)
+                desiredNextPixelPos.y += moveAmountThisFrame;
+                if (desiredNextPixelPos.y >= m_pixelTargetForTileMove.y) {
+                    desiredNextPixelPos.y = m_pixelTargetForTileMove.y;
+                    reachedTargetAxis = true;
+                }
+            } else {
+                desiredNextPixelPos.y = m_pixelTargetForTileMove.y;
+                reachedTargetAxis = true;
+            }
+            desiredNextPixelPos.x = m_pixelTargetForTileMove.x; // 强制X轴对齐
+            break;
+        case Direction::LEFT:
+            if (currentPos.x > m_pixelTargetForTileMove.x) { // 还在目标右方 (X值更大)
+                desiredNextPixelPos.x -= moveAmountThisFrame;
+                if (desiredNextPixelPos.x <= m_pixelTargetForTileMove.x) {
+                    desiredNextPixelPos.x = m_pixelTargetForTileMove.x;
+                    reachedTargetAxis = true;
+                }
+            } else {
+                desiredNextPixelPos.x = m_pixelTargetForTileMove.x;
+                reachedTargetAxis = true;
+            }
+            desiredNextPixelPos.y = m_pixelTargetForTileMove.y; // 强制Y轴对齐
+            break;
+        case Direction::RIGHT:
+            if (currentPos.x < m_pixelTargetForTileMove.x) { // 还在目标左方 (X值更小)
+                desiredNextPixelPos.x += moveAmountThisFrame;
+                if (desiredNextPixelPos.x >= m_pixelTargetForTileMove.x) {
+                    desiredNextPixelPos.x = m_pixelTargetForTileMove.x;
+                    reachedTargetAxis = true;
+                }
+            } else {
+                desiredNextPixelPos.x = m_pixelTargetForTileMove.x;
+                reachedTargetAxis = true;
+            }
+            desiredNextPixelPos.y = m_pixelTargetForTileMove.y; // 强制Y轴对齐
+            break;
+    }
+
+    Tank::move(desiredNextPixelPos, map); // 尝试移动
+
+    // 移动后再次获取实际位置，因为 Tank::move 可能因碰撞而没有完全移动到 desiredNextPixelPos
+    sf::Vector2f actualNewPos = get_position();
+
+    // 判断是否真正到达了目标格子的中心
+    // 使用一个小的阈值来判断是否对齐，因为浮点数比较可能不精确
+    float arrivalThreshold = 1.5f; // 像素阈值 (和之前一样)
+    bool alignedX = std::abs(actualNewPos.x - m_pixelTargetForTileMove.x) < arrivalThreshold;
+    bool alignedY = std::abs(actualNewPos.y - m_pixelTargetForTileMove.y) < arrivalThreshold;
+
+    if (reachedTargetAxis && alignedX && alignedY) { // 如果在该轴向到达了目标，并且两个轴都对齐了
         m_position = m_pixelTargetForTileMove; // 精确对齐到格子中心
         m_sprite.setPosition(m_position);
         m_isMovingToNextTile = false;
-        //std::cout << "AI reached center of target tile." << std::endl;
-        return;
-    }
-
-    sf::Vector2f normalizedDir(0.f, 0.f);
-    if (distanceToTargetPixel > 0) {
-        normalizedDir.x = directionToTargetPixel.x / distanceToTargetPixel;
-        normalizedDir.y = directionToTargetPixel.y / distanceToTargetPixel;
-    }
-
-    sf::Vector2f movementThisFrame = normalizedDir * m_speed * dt.asSeconds();
-    sf::Vector2f desiredNextPixelPos;
-
-    // 防止过冲：如果本帧的移动量大于到目标的距离，则直接移动到目标
-    if (movementThisFrame.x * movementThisFrame.x + movementThisFrame.y * movementThisFrame.y >= distanceToTargetPixel * distanceToTargetPixel) {
-        desiredNextPixelPos = m_pixelTargetForTileMove;
-    } else {
-        desiredNextPixelPos = currentPos + movementThisFrame;
-    }
-
-    // *** 使用基类的 Tank::move 进行实际移动和碰撞检测 ***
-    sf::Vector2f originalPosBeforeMove = currentPos;
-    Tank::move(desiredNextPixelPos, map); // Tank::move 会更新 m_position (如果成功)
-    sf::Vector2f actualNewPos = get_position();
-
-    // 检查移动是否成功，以及是否因为碰撞而没有移动到预期的 desiredNextPixelPos
-    if (actualNewPos == originalPosBeforeMove && distanceToTargetPixel > arrivalThreshold) {
-        // 坦克尝试移动，但 Tank::move 因为碰撞阻止了它。
-        // 这意味着 desiredNextPixelPos (即使它仍在当前格子内或者非常接近)
-        // 会导致坦克的包围盒与不可通行的瓦片碰撞。
-        // 这通常发生在坦克试图“挤”过一个狭窄的边缘，或者其包围盒比预期的要大。
-        //std::cout << "AI (Tile Move): Tank::move blocked movement towards desired pixel." << std::endl;
-        m_isMovingToNextTile = false; // 停止当前移动尝试，让 decideNextAction 重新评估
-        // 在更复杂的AI中，这里可能会标记当前方向/路径受阻
-    } else if (actualNewPos != desiredNextPixelPos && desiredNextPixelPos == m_pixelTargetForTileMove) {
-        // 如果目标是格子中心，但 Tank::move 之后没有精确到达（可能被阻挡了一点点）
-        // 并且我们还没到 arrivalThreshold，我们可能仍认为在移动。
-        // 但如果已经接近 arrivalThreshold，上面的第一个 if 会处理。
-    }
-
-
-    // 如果移动成功（或者部分成功）后，再次检查是否到达最终的格子中心目标
-    // （因为 Tank::move 可能不会精确地移动到 desiredNextPixelPos，如果它导致过冲格子中心的话）
-    currentPos = get_position(); // 更新当前位置以进行下一次到达检查
-    directionToTargetPixel = m_pixelTargetForTileMove - currentPos;
-    distanceToTargetPixel = std::sqrt(directionToTargetPixel.x * directionToTargetPixel.x + directionToTargetPixel.y * directionToTargetPixel.y);
-
-    if (distanceToTargetPixel <= arrivalThreshold) {
-        m_position = m_pixelTargetForTileMove; // 再次精确对齐
-        m_sprite.setPosition(m_position);
+        // std::cout << "AI reached center of target tile (Strict Axis Movement)." << std::endl;
+    } else if ( Tank::get_position() == currentPos && !reachedTargetAxis) { // 如果Tank::move没有移动坦克 (比如撞墙了)
+        // 且我们还没有在逻辑上到达目标轴的指定点，那么就停止这次移动尝试，让AI重新决策
         m_isMovingToNextTile = false;
-        //std::cout << "AI reached center of target tile after Tank::move." << std::endl;
+        // std::cout << "AI movement blocked by collision before reaching target axis point." << std::endl;
     }
 }
 void AITank::setStrategicTargetTile(sf::Vector2i targetTile) {

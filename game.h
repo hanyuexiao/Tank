@@ -60,6 +60,8 @@ private:
     void update(sf::Time dt);          // 更新游戏世界中所有对象的状态和逻辑，dt 是帧间隔时间
     void render();                     // 将游戏世界渲染到窗口上
 
+    void resolveTankCollision(Tank* tank1, Tank* tank2); // 解决坦克之间的碰撞
+
     // 游戏核心数据
     sf::RenderWindow window;           // SFML 渲染窗口，游戏的主要画布
     GameState state;                   // 当前的游戏状态 (MainMenu, Playing, GameOver, etc.)

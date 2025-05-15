@@ -24,6 +24,19 @@ Tank::Tank(sf::Vector2f startPosition, Direction startDirection,float speed,int 
         std::cerr << "Tank Constructor Error: Initial texture could not be set for direction " << static_cast<int>(m_direction) << ". Textures loaded: " << m_textures.size() << std::endl;
         // 比如，如果纹理加载失败，m_textures可能是空的
     }
+    //将tank原点设置在图片中心
+    if(m_frameWidth>0 && m_frameHeight >0){
+        m_sprite.setOrigin(m_frameWidth/2.f, m_frameHeight/2.f);
+        // 调试打印：
+        std::cout << "Tank Type (debug): " << typeid(*this).name() // 这会打印出对象类型，比如 PlayerTank 或 AITank
+                  << " Set Origin to: (" << m_sprite.getOrigin().x
+                  << ", " << m_sprite.getOrigin().y << ")"
+                  << " with frameWidth: " << m_frameWidth
+                  << " frameHeight: " << m_frameHeight << std::endl;
+    }else{
+        std::cerr << "Tank Constructor Error: Frame width or height is zero." << std::endl;
+    }
+
     m_sprite.setPosition(m_position);
 }
 
@@ -45,6 +58,14 @@ void Tank::loadTextures() {
 
 void Tank::draw(sf::RenderWindow& window) {
     window.draw(m_sprite);
+
+    sf::CircleShape centerDot(3.f);
+    centerDot.setFillColor(sf::Color::Red);
+
+    centerDot.setOrigin(3.f, 3.f);
+    centerDot.setPosition(m_position);
+
+    window.draw(centerDot);
 }
 
 void Tank::setDirection(Direction dir) {
@@ -151,8 +172,8 @@ std::unique_ptr<Bullet> Tank::shoot(Game& gameInstance) { // 接收 Game 对象�
         return nullptr; // 如果冷却时间还没到，返回空指针
     }
     Direction currentTankDir = get_Direction(); // 获取坦克当前面向的方向
-
     m_shootTimer = sf::Time::Zero; // 重置射击计时器
+
     // 1. 根据坦克方向确定子弹的飞行方向向量 (flyVec)
     sf::Vector2f flyVec;
     switch (currentTankDir) {
@@ -179,37 +200,24 @@ std::unique_ptr<Bullet> Tank::shoot(Game& gameInstance) { // 接收 Game 对象�
     // 3. 计算子弹的精确起始位置 (bulletStartPos)
     //    目标是让子弹从坦克炮管口发射，并且其自身的中心点位于炮管口的中心线上。
     sf::Vector2f bulletStartPos = get_position(); // 获取坦克当前位置 (通常是左上角)
-    float tankWidth = static_cast<float>(get_TileWight());
-    float tankHeight = static_cast<float>(get_TileHeight());
+    float tankHalfWidth = bulletWidth / 2.f;
+    float tankHalfHeight = bulletHeight /2.f;
 
     // 偏移因子，让子弹稍微离开坦克一点，避免立即与自身碰撞
-    const float launchOffset = 5.0f;
+    const float launchOffset = 25.0f;
 
     switch (currentTankDir) {
         case Direction::UP:
-//            bulletStartPos.x += tankWidth/4.5f;  // 坦克顶部中线 X
-//            bulletStartPos.y -= launchOffset;     // 从坦克顶部向上发射并偏移
-            // 如果子弹精灵原点设为中心，还需调整，使得子弹中心在炮管中线
-             bulletStartPos.x -= bulletWidth-25; // 如果子弹原点是左上角，要让中心对齐，需要这个
-             bulletStartPos.y -= bulletHeight; // 使子弹的几何中心位于此点
+            bulletStartPos.y -= (tankHalfHeight + launchOffset);
             break;
         case Direction::DOWN:
-//            bulletStartPos.x += tankWidth / 4.5f;  // 坦克底部中线 X
-//            bulletStartPos.y += tankHeight + launchOffset; // 从坦克底部向下发射并偏移
-             bulletStartPos.x -= bulletWidth-25;
-             bulletStartPos.y += bulletHeight+25;
+            bulletStartPos.y += (tankHalfHeight + launchOffset);
             break;
         case Direction::LEFT:
-//            bulletStartPos.x -= launchOffset;     // 从坦克左侧向左发射并偏移
-//            bulletStartPos.y += tankHeight / 4.5f; // 坦克左侧中线 Y
-             bulletStartPos.x -= bulletWidth;
-             bulletStartPos.y -= bulletHeight / 2.f -25;
+            bulletStartPos.x -= (tankHalfWidth + launchOffset);
             break;
         case Direction::RIGHT:
-//            bulletStartPos.x += tankWidth + launchOffset; // 从坦克右侧向右发射并偏移
-//            bulletStartPos.y += tankHeight / 4.5f; // 坦克右侧中线 Y
-             bulletStartPos.x += bulletWidth + 25;
-             bulletStartPos.y -= bulletHeight / 2.f -25;
+            bulletStartPos.x += (tankHalfWidth + launchOffset);
             break;
     }
 
