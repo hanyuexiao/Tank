@@ -5,8 +5,8 @@
 #include "AITank.h"
 #include "Bullet.h" // 如果 decideAction 直接创建子弹
 
-AITank::AITank(sf::Vector2f startPosition, Direction direction, float speed, int frameWidth, int frameHeight)
-        : Tank(startPosition, direction, speed, frameWidth, frameHeight),
+AITank::AITank(sf::Vector2f startPosition, Direction direction, float speed, int frameWidth, int frameHeight,int inihp)
+        : Tank(startPosition, direction, speed, frameWidth, frameHeight,inihp),
           m_isMovingToNextTile(false) {
     std::cout << "AITank (Tile-based) created. Speed: " << m_speed << std::endl;
 }

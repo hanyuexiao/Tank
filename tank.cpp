@@ -2,7 +2,7 @@
 #include "Bullet.h"
 #include "Game.h"
 
-Tank::Tank(sf::Vector2f startPosition, Direction startDirection,float speed,int frameWidth, int frameHeight) :
+Tank::Tank(sf::Vector2f startPosition, Direction startDirection,float speed,int frameWidth, int frameHeight,int iniHealth) :
         m_position(startPosition),
         m_direction(startDirection),
         m_currentFrame(0),
@@ -10,7 +10,10 @@ Tank::Tank(sf::Vector2f startPosition, Direction startDirection,float speed,int 
         m_frameHeight(frameHeight),       // 使用传入的参数
         m_shootCooldown(sf::seconds(0.5f)),
         m_shootTimer(sf::Time::Zero),
-        m_speed(speed)// *** 确保 m_shootTimer 在这里初始化 ***
+        m_speed(speed),// *** 确保 m_shootTimer 在这里初始化 ***
+        m_health(iniHealth),
+        m_MaxHealth(iniHealth),
+        m_Destroyed(false)
 {
     loadTextures(); // 加载所有方向的纹理
     // 设置初始纹理和位置
@@ -184,29 +187,29 @@ std::unique_ptr<Bullet> Tank::shoot(Game& gameInstance) { // 接收 Game 对象�
 
     switch (currentTankDir) {
         case Direction::UP:
-            bulletStartPos.x += tankWidth/3.f;  // 坦克顶部中线 X
-            bulletStartPos.y -= launchOffset;     // 从坦克顶部向上发射并偏移
+//            bulletStartPos.x += tankWidth/4.5f;  // 坦克顶部中线 X
+//            bulletStartPos.y -= launchOffset;     // 从坦克顶部向上发射并偏移
             // 如果子弹精灵原点设为中心，还需调整，使得子弹中心在炮管中线
-            // bulletStartPos.x -= bulletWidth / 2.f; // 如果子弹原点是左上角，要让中心对齐，需要这个
-            // bulletStartPos.y -= bulletHeight / 2.f; // 使子弹的几何中心位于此点
+             bulletStartPos.x -= bulletWidth-25; // 如果子弹原点是左上角，要让中心对齐，需要这个
+             bulletStartPos.y -= bulletHeight; // 使子弹的几何中心位于此点
             break;
         case Direction::DOWN:
-            bulletStartPos.x += tankWidth / 3.f;  // 坦克底部中线 X
-            bulletStartPos.y += tankHeight + launchOffset; // 从坦克底部向下发射并偏移
-            // bulletStartPos.x -= bulletWidth / 2.f;
-            // bulletStartPos.y += bulletHeight / 2.f;
+//            bulletStartPos.x += tankWidth / 4.5f;  // 坦克底部中线 X
+//            bulletStartPos.y += tankHeight + launchOffset; // 从坦克底部向下发射并偏移
+             bulletStartPos.x -= bulletWidth-25;
+             bulletStartPos.y += bulletHeight+25;
             break;
         case Direction::LEFT:
-            bulletStartPos.x -= launchOffset;     // 从坦克左侧向左发射并偏移
-            bulletStartPos.y += tankHeight / 3.f; // 坦克左侧中线 Y
-            // bulletStartPos.x -= bulletWidth / 2.f;
-            // bulletStartPos.y -= bulletHeight / 2.f;
+//            bulletStartPos.x -= launchOffset;     // 从坦克左侧向左发射并偏移
+//            bulletStartPos.y += tankHeight / 4.5f; // 坦克左侧中线 Y
+             bulletStartPos.x -= bulletWidth;
+             bulletStartPos.y -= bulletHeight / 2.f -25;
             break;
         case Direction::RIGHT:
-            bulletStartPos.x += tankWidth + launchOffset; // 从坦克右侧向右发射并偏移
-            bulletStartPos.y += tankHeight / 3.f; // 坦克右侧中线 Y
-            // bulletStartPos.x += bulletWidth / 2.f;
-            // bulletStartPos.y -= bulletHeight / 2.f;
+//            bulletStartPos.x += tankWidth + launchOffset; // 从坦克右侧向右发射并偏移
+//            bulletStartPos.y += tankHeight / 4.5f; // 坦克右侧中线 Y
+             bulletStartPos.x += bulletWidth + 25;
+             bulletStartPos.y -= bulletHeight / 2.f -25;
             break;
     }
 
@@ -241,4 +244,30 @@ std::unique_ptr<Bullet> Tank::shoot(Game& gameInstance) { // 接收 Game 对象�
     //           int damage, float speed, int type);
     return std::make_unique<Bullet>(bulletTexture, bulletStartPos, currentTankDir, flyVec,
                                     bulletDamage, bulletSpeedValue, bulletType);
+}
+
+void Tank::takeDamage(int damageAmount) {
+    if(m_Destroyed){
+        return;
+    }
+
+    m_health -= damageAmount;
+    std::cout << "Tank take damage: " << damageAmount << std::endl;
+    if (m_health <= 0)
+    {
+        m_health = 0;
+        m_Destroyed = true;
+        std::cout << "Tank at (" << m_position.x << ", " << m_position.y << ") is destroyed!" << std::endl;
+        //在这里可以触发一些视觉、音效，或者由Game类来处理后续逻辑
+    }
+}
+
+void Tank::revive(sf::Vector2f position, Direction direction) {
+    m_position = position;
+    m_direction = direction;
+    m_Destroyed = false;
+    m_health = m_MaxHealth;
+    m_sprite.setPosition(m_position);
+    setDirection(direction);
+    std::cout << "Tank at (" << m_position.x << ", " << m_position.y << ") is revived!" << std::endl;
 }

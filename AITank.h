@@ -1,4 +1,3 @@
-//
 // Created by admin on 2025/5/12.
 //
 
@@ -8,17 +7,15 @@
 #include "Tank.h"
 #include "Map.h"  // For Map reference
 
-class Game;
-
-class Game;
+class Game;  // 保留一个前向声明，删除重复行
 
 class AITank : public Tank {
 public:
-    AITank(sf::Vector2f startPosition, Direction direction, float speed = 80.f, int frameWidth = 50, int frameHeight = 50);
+    AITank(sf::Vector2f startPosition, Direction direction, float speed = 80.f, int frameWidth = 50, int frameHeight = 50,int inihp = 100);
 
     // AI决策：决定下一步要朝哪个方向移动（或者是否射击等）
     // 这个函数会被 Game::update 定期调用
-    void decideNextAction(const Map& map, const Tank* playerTankRef /*或其他目标信息*/);
+    void decideNextAction(const Map& map, const Tank* playerTankRef /* 或其他目标信息 */); // 补全注释闭合
     void setStrategicTargetTile(sf::Vector2i targetTile);
     // 每帧调用，处理正在进行的格子间移动
     void updateMovementBetweenTiles(sf::Time dt, const Map& map);
@@ -36,5 +33,4 @@ private:
     sf::Vector2i getCurrentTile(const Map& map) const;
 };
 
-#endif // AITANK_H
-
+#endif //AITANK_H

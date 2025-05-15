@@ -22,9 +22,9 @@ Bullet::Bullet(const sf::Texture& texture,
 
     // 因为纹理已经是特定方向的了，所以通常不需要再对 m_sprite 进行 setRotation()
     // 如果需要，可以设置原点到中心，使定位更精确
-    // sf::FloatRect bounds = m_sprite.getLocalBounds();
-    // m_sprite.setOrigin(bounds.width / 2.f, bounds.height / 2.f);
-    // m_sprite.setPosition(m_position); // 如果设置了原点，可能需要重新设置位置以匹配逻辑上的startPosition
+     sf::FloatRect bounds = m_sprite.getLocalBounds();
+     m_sprite.setOrigin(bounds.width / 2.f, bounds.height / 2.f);
+     m_sprite.setPosition(m_position); // 如果设置了原点，可能需要重新设置位置以匹配逻辑上的startPosition
 
     std::cout << "Bullet created. Type: " << m_type
               << ", Pos: (" << m_position.x << "," << m_position.y << ")"

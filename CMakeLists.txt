@@ -24,5 +24,8 @@ add_executable(Tanks main.cpp
         PlayerTank.h
         AITank.cpp
         AITank.h
+        Grenade.cpp
+        Grenade.h
 )
 target_link_libraries(Tanks PRIVATE sfml-system sfml-window sfml-graphics sfml-network sfml-audio)
+
