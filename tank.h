@@ -25,15 +25,27 @@ protected:
     sf::Vector2f m_position;             // 坦克在地图上的精确位置 (通常是左上角)
     Direction m_direction;               // 坦克当前的朝向 (UP, DOWN, LEFT, RIGHT)
     float m_speed;                       // 坦克的移动速度 (像素/秒)
+    float m_baseSpeed;
+    sf::Time m_movementSpeedBuffDuration;
+    bool m_isMovementSpeedBuffActive;
 
     // 射击相关
     sf::Time m_shootCooldown;            // 射击的最小时间间隔 (冷却时间)
     sf::Time m_shootTimer;               // 自上次射击以来经过的时间，用于计算冷却
+    int m_baseAttackPower;
+    int m_currentAttackPower;
+    sf::Time m_attackBuffDuration;
+    bool m_isAttackBuffActive;
+    sf::Time m_baseShootCooldown;
+    sf::Time m_attackSpeedBuffDuration;
+    bool m_isAttackSpeedBuffActive;
 
     // 生命状态
     int m_health;                        // 坦克当前的生命值
     int m_MaxHealth;                     // 坦克的最大生命值
     bool m_Destroyed;                    // 标记坦克是否已被摧毁 (true 表示已摧毁)
+    int m_armor;
+    static const int MAX_ARMOR = 1;
 
     // 内部辅助函数
     void loadTextures();                 // 私有方法，用于加载坦克所需的所有纹理
@@ -42,7 +54,7 @@ public:
     // 构造函数与析构函数
     // 参数: startPosition - 初始位置, direction - 初始方向, speed - 移动速度,
     //       frameWidth - 帧宽, frameHeight - 帧高, health - 初始生命值, max_health - 最大生命值
-    Tank(sf::Vector2f startPosition, Direction direction, float speed = 100.f, int frameWidth = 50, int frameHeight = 50, int initialHealth = 100);
+    Tank(sf::Vector2f startPosition, Direction direction, float speed = 100.f, int frameWidth = 50, int frameHeight = 50, int initialHealth = 100,int m_arrmor = 0);
     virtual ~Tank() = default;           // 虚析构函数，确保派生类的析构函数被正确调用
 
     // 核心功能方法
@@ -65,6 +77,8 @@ public:
     int get_TileHeight() const { return m_frameHeight; } // 建议统一命名为 getFrameHeight()
     // 获取坦克的全局边界框，用于碰撞检测
     sf::FloatRect getBounds() const { return m_sprite.getGlobalBounds(); }
+    int getArmor() const { return m_armor; }
+
 
     // --- 射击相关 Getter 和 Setter ---
     // 检查坦克是否可以射击 (冷却时间是否已过)
@@ -78,7 +92,13 @@ public:
      int getMaxHealth() const { return m_MaxHealth; } // 获取最大生命值
      bool isDestroyed() const { return m_Destroyed; } // 判断坦克是否已被摧毁
      void revive(sf::Vector2f position, Direction direction); // 复活/重置坦克状态
+     void setArmor(int newArmor);
+     void activateAttackBuff(float multiplier,sf::Time duration);
+     int getCurrentAttackPower() const;
+     void activateAttackSpeedBuff(float cooldownMultiplier,sf::Time duration);
 
+     void setSpeed(float newSpeed);
+     void activateMovementSpeedBuff(float increaseAmount,sf::Time duration);
 };
 
 #endif // TANK_H

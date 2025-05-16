@@ -1,19 +1,28 @@
+#include <iostream>
 #include "tank.h"
 #include "Bullet.h"
 #include "Game.h"
 
-Tank::Tank(sf::Vector2f startPosition, Direction startDirection,float speed,int frameWidth, int frameHeight,int iniHealth) :
+Tank::Tank(sf::Vector2f startPosition, Direction startDirection,float speed,int frameWidth, int frameHeight,int iniHealth,int m_armor) :
         m_position(startPosition),
         m_direction(startDirection),
         m_currentFrame(0),
         m_frameWidth(frameWidth),         // 使用传入的参数
         m_frameHeight(frameHeight),       // 使用传入的参数
-        m_shootCooldown(sf::seconds(0.5f)),
+        m_baseShootCooldown(sf::seconds(0.5f)),
+        m_shootCooldown(m_baseShootCooldown),
         m_shootTimer(sf::Time::Zero),
-        m_speed(speed),// *** 确保 m_shootTimer 在这里初始化 ***
+        m_attackSpeedBuffDuration(sf::Time::Zero),
+        m_isAttackSpeedBuffActive(false),
+        m_isAttackBuffActive(false),
+        m_baseSpeed(speed),
+        m_speed(m_baseSpeed),// *** 确保 m_shootTimer 在这里初始化 ***
         m_health(iniHealth),
         m_MaxHealth(iniHealth),
-        m_Destroyed(false)
+        m_Destroyed(false),
+        m_armor(m_armor),
+        m_isMovementSpeedBuffActive(false),
+        m_movementSpeedBuffDuration(sf::Time::Zero)
 {
     loadTextures(); // 加载所有方向的纹理
     // 设置初始纹理和位置
@@ -85,6 +94,36 @@ void Tank::update(sf::Time dt) {
 
     if(m_shootTimer < m_shootCooldown){
         m_shootTimer += dt;
+    }
+
+    if(m_isAttackBuffActive){
+        m_attackBuffDuration -= dt;
+        if(m_attackBuffDuration <= sf::Time::Zero){
+            m_currentAttackPower = m_baseAttackPower;
+            m_isAttackBuffActive = false;
+            m_attackBuffDuration = sf::Time::Zero;
+            std::cout << "Attack buff duration ended" << std::endl;
+        }
+    }
+
+    if (m_isAttackSpeedBuffActive) {
+        m_attackSpeedBuffDuration -= dt; // 使用攻速buff的计时器 m_shootCooldownBuffDuration
+        if (m_attackSpeedBuffDuration <= sf::Time::Zero) {
+            m_shootCooldown = m_baseShootCooldown; // 恢复基础射击冷却
+            m_isAttackSpeedBuffActive = false;
+            m_attackSpeedBuffDuration = sf::Time::Zero;
+            std::cout << "Attack Speed buff expired. Shoot cooldown reset to: " << m_shootCooldown.asSeconds() << "s" << std::endl;
+        }
+    }
+
+    if (m_isMovementSpeedBuffActive) {
+        m_movementSpeedBuffDuration -= dt;
+        if (m_movementSpeedBuffDuration <= sf::Time::Zero) {
+            m_speed = m_baseSpeed; // 恢复基础移动速度
+            m_isMovementSpeedBuffActive = false;
+            m_movementSpeedBuffDuration = sf::Time::Zero;
+            std::cout << "Movement Speed buff expired. Speed reset to: " << m_speed << "s" << std::endl;
+        }
     }
 }
 
@@ -238,7 +277,7 @@ std::unique_ptr<Bullet> Tank::shoot(Game& gameInstance) { // 接收 Game 对象�
     // 这种方式通常更简单直观。我强烈建议在 Bullet 构造函数中设置精灵原点到中心。
 
     // 4. 定义子弹的其他属性
-    int bulletDamage = 10;        // 示例伤害值
+    int bulletDamage = getCurrentAttackPower();      // 示例伤害值
     float bulletSpeedValue = 200.f; // 示例速度值 (像素/秒)
     int bulletType = 0;           // 示例类型
 
@@ -264,6 +303,12 @@ void Tank::takeDamage(int damageAmount) {
         return;
     }
 
+    if(m_armor > 0){
+        m_armor--;
+        std::cout << "Tank armor absorbed the damage. Armor left: " << m_armor << std::endl;
+        return ;
+    }
+
     m_health -= damageAmount;
     std::cout << "Tank take damage: " << damageAmount << std::endl;
     if (m_health <= 0)
@@ -283,4 +328,76 @@ void Tank::revive(sf::Vector2f position, Direction direction) {
     m_sprite.setPosition(m_position);
     setDirection(direction);
     std::cout << "Tank at (" << m_position.x << ", " << m_position.y << ") is revived!" << std::endl;
+}
+
+void Tank::setArmor(int newArmor) {
+    if(newArmor < 0){
+        m_armor = 0;
+    }else if (newArmor > 1){
+        m_armor = 1;
+    }else{
+        m_armor = newArmor;
+    }
+}
+
+void Tank::activateAttackBuff(float multiplier, sf::Time duration) {
+    if (!m_isAttackBuffActive) {
+        // 首次激活buff，或者之前的buff已过期
+        // 确保 m_baseAttackPower 是在构造函数中正确初始化的，并且不会在这里被 m_currentAttackPower 覆盖
+        m_currentAttackPower = static_cast<int>(m_baseAttackPower * multiplier);
+        std::cout << "Attack buff activated! Base: " << m_baseAttackPower
+                  << ", Multiplier: " << multiplier
+                  << ", Current attack: " << m_currentAttackPower << std::endl;
+    } else {
+        // Buff 已经在激活状态，我们只刷新持续时间
+        // 通常，如果再次拾取同类buff，我们不会改变倍率，除非新buff的倍率更高
+        // 这里我们简单地刷新持续时间，攻击力倍数由第一次激活决定，或由传入的 multiplier 决定（如果希望每次都重新计算）
+        // 为了确保攻击力是基于最新的基础攻击力和传入的倍率，我们还是重新计算一下：
+        m_currentAttackPower = static_cast<int>(m_baseAttackPower * multiplier);
+        std::cout << "Attack buff refreshed! Base: " << m_baseAttackPower
+                  << ", Multiplier: " << multiplier
+                  << ", Current attack: " << m_currentAttackPower << std::endl;
+    }
+
+    m_attackBuffDuration = duration; // 无论是首次激活还是刷新，都将持续时间设置为新的duration
+    m_isAttackBuffActive = true;     // 确保buff状态为激活
+
+    std::cout << "Attack buff duration set to " << m_attackBuffDuration.asSeconds() << "s" << std::endl;
+}
+
+int Tank::getCurrentAttackPower() const {
+    return m_currentAttackPower;
+}
+
+void Tank::activateAttackSpeedBuff(float newCooldownMultiplier, sf::Time duration) {
+    // 如果已激活，则刷新时间；否则，应用新的冷却时间
+    m_shootCooldown = m_baseShootCooldown * newCooldownMultiplier; // 注意是乘法，因为我们传入的是冷却时间的倍率
+
+    m_attackSpeedBuffDuration = duration; // 使用新的变量名 m_shootCooldownBuffDuration 会更好
+    m_isAttackSpeedBuffActive = true;
+
+    std::cout << "Attack Speed buff activated! Current shoot cooldown: " << m_shootCooldown.asSeconds()
+              << "s (Base: " << m_baseShootCooldown.asSeconds() << "s) for "
+              << duration.asSeconds() << "s" << std::endl;
+}
+
+void Tank::setSpeed(float newSpeed) {
+    m_speed = newSpeed;
+}
+
+// tank.cpp
+void Tank::activateMovementSpeedBuff(float increaseAmount, sf::Time duration) {
+    if (!m_isMovementSpeedBuffActive) {
+        // 首次激活，应用增量
+        // m_baseSpeed 已经在构造时设置好了
+    }
+    // 无论是否已激活，都基于最新的 m_baseSpeed 重新计算，并刷新持续时间
+    m_speed = m_baseSpeed + increaseAmount;
+
+    m_movementSpeedBuffDuration = duration;
+    m_isMovementSpeedBuffActive = true;
+
+    std::cout << "Movement Speed buff activated! Current speed: " << m_speed
+              << " (Base: " << m_baseSpeed << ") for "
+              << duration.asSeconds() << "s" << std::endl;
 }

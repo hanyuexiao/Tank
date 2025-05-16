@@ -28,6 +28,8 @@ public:
     void resetShootTimerAI();
 
     void update(sf::Time dt)override;
+
+    void activateSlowDebuff(float speedMultiplier,float attackSpeedFactor,sf::Time duration);
 private:
     sf::Time m_aiShootCooldown;
     sf::Time m_aiShootTimer;
@@ -45,6 +47,12 @@ private:
     // 辅助函数
     static sf::Vector2f getPixelCenterForTile(int tileX, int tileY, const Map& map) ;
     sf::Vector2i getCurrentTile(const Map& map) const;
+    float m_baseSpeedForDebuff;
+    std::uniform_real_distribution<float> m_originalCooldownDistribution;
+    bool m_wasOriginalDistStored;
+
+    sf::Time m_slowDebuffDuration;
+    bool m_isSlowDebuffActive;
 };
 
 #endif //AITANK_H

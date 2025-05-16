@@ -7,11 +7,16 @@
 
 AITank::AITank(sf::Vector2f startPosition, Direction direction, float speed, int frameWidth, int frameHeight,int inihp)
         : Tank(startPosition, direction, speed, frameWidth, frameHeight,inihp),
+          m_originalCooldownDistribution(0.5f,0.2f),
+          m_wasOriginalDistStored(false),
+          m_slowDebuffDuration(sf::Time::Zero),
+          m_isSlowDebuffActive(false),
           m_isMovingToNextTile(false),
           m_hasStrategicTarget(false),
           m_aiShootTimer(sf::Time::Zero),
           m_rng(std::random_device{}()),
           m_cooldownDistribution(0.5f,2.0f){
+    m_originalCooldownDistribution = m_cooldownDistribution;
     std::cout << "AITank (Tile-based) created. Speed: " << m_speed << std::endl;
     generateNewRandomCooldown();
 }
@@ -35,6 +40,27 @@ void AITank::update(sf::Time dt) {
 
     if(m_aiShootTimer < m_aiShootCooldown) {
         m_aiShootTimer += dt;
+    }
+
+    // 处理减速debuff倒计时
+    if (m_isSlowDebuffActive) {
+        m_slowDebuffDuration -= dt;
+        if (m_slowDebuffDuration <= sf::Time::Zero) {
+            // Debuff 结束，恢复原始状态
+            setSpeed(m_baseSpeedForDebuff); // 恢复速度
+
+            // 恢复原始的冷却时间分布
+            if(m_wasOriginalDistStored){
+                m_cooldownDistribution = m_originalCooldownDistribution;
+                m_wasOriginalDistStored = false; // 重置标记，以便下次debuff能正确存储
+            }
+            resetShootTimerAI(); // 让原始冷却分布生效
+
+            m_isSlowDebuffActive = false;
+            m_slowDebuffDuration = sf::Time::Zero;
+            std::cout << "AITank (" << get_position().x << "," << get_position().y
+                      << ") slow debuff expired. Stats restored." << std::endl;
+        }
     }
 }
 sf::Vector2i AITank::getCurrentTile(const Map& map) const {
@@ -251,4 +277,33 @@ void AITank::decideNextAction(const Map& map, const Tank* playerTankRef) {
         //std::cout << "AI (Tile Move): No valid move found towards strategic target or stuck." << std::endl;
     }
     // --- 寻路逻辑占位符结束 ---
+}
+
+void AITank::activateSlowDebuff(float speedMultiplier, float attackSpeedFactor, sf::Time duration) {
+    if (!m_isSlowDebuffActive) {
+        // 首次激活debuff，存储原始状态
+        m_baseSpeedForDebuff = getSpeed(); // 使用基类或当前类的getSpeed()
+
+        // 存储原始的冷却时间分布
+        if (!m_wasOriginalDistStored) { // 确保只存储一次最原始的，除非debuff效果可叠加或刷新有不同逻辑
+            m_originalCooldownDistribution = m_cooldownDistribution;
+            m_wasOriginalDistStored = true;
+        }
+    }
+
+    // 应用速度减益
+    setSpeed(m_baseSpeedForDebuff * speedMultiplier); // speedMultiplier = 0.3f
+
+    // 应用攻速减益 (调整冷却分布)
+    // attackSpeedFactor = 2.0f 表示冷却时间乘以2
+    float currentMin = m_originalCooldownDistribution.min(); // 从存储的原始分布开始计算
+    float currentMax = m_originalCooldownDistribution.max();
+    m_cooldownDistribution = std::uniform_real_distribution<float>(currentMin * attackSpeedFactor, currentMax * attackSpeedFactor);
+    resetShootTimerAI(); // 让新的冷却分布立即生效（通过重新生成冷却时间）
+
+    m_slowDebuffDuration = duration;
+    m_isSlowDebuffActive = true;
+
+    std::cout << "AITank (" << get_position().x << "," << get_position().y << ") SLOWED DOWN. Speed: " << getSpeed()
+              << ", Cooldown dist altered. Duration: " << duration.asSeconds() << "s" << std::endl;
 }
