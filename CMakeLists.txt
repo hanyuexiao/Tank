@@ -26,6 +26,16 @@ add_executable(Tanks main.cpp
         AITank.h
         Grenade.cpp
         Grenade.h
+        AddArmor.cpp
+        AddArmor.h
+        AddAttack.cpp
+        AddAttack.h
+        AddAttackSpeed.cpp
+        AddAttackSpeed.h
+        SlowDownAI.cpp
+        SlowDownAI.h
+        AddSpeed.cpp
+        AddSpeed.h
 )
 target_link_libraries(Tanks PRIVATE sfml-system sfml-window sfml-graphics sfml-network sfml-audio)
 

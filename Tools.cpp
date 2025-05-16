@@ -6,8 +6,8 @@
 #include "Tools.h"
 #include "tank.h"
 
-Tools::Tools(sf::Vector2f position, const sf::Texture& texture):m_position(position), m_isActive(true){
-    m_sprite.setTexture(texture);
+Tools::Tools(sf::Vector2f position, const sf::Texture& texture):m_position(position),m_Texture(texture),m_isActive(true){
+    m_sprite.setTexture(m_Texture);
     m_sprite.setPosition(position);
     sf::FloatRect bounds = m_sprite.getGlobalBounds();
     m_sprite.setOrigin(bounds.width / 2, bounds.height / 2);
@@ -27,11 +27,11 @@ void Tools::setActive(bool active) {
 }
 
 bool Tools::isActive() const {
-    return false;
+    return m_isActive;
 }
 
 sf::Vector2f Tools::getPosition() const {
-    return sf::Vector2f();
+    return m_position;
 }
 
 sf::FloatRect Tools::getBound() const {
