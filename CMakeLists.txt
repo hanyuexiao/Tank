@@ -37,5 +37,11 @@ add_executable(Tanks main.cpp
         AddSpeed.cpp
         AddSpeed.h
 )
+
+target_include_directories(Tanks PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR} # 包含项目根目录，这样可以直接 #include "game.h" 等
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party # 让编译器能找到 nlohmann/json.hpp
+)
+
 target_link_libraries(Tanks PRIVATE sfml-system sfml-window sfml-graphics sfml-network sfml-audio)
 

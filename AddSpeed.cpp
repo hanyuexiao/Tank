@@ -16,5 +16,5 @@ void AddSpeed::applyEffect(Tank &tank, Game &gameContext) {
 
     this->setActive(false); // 道具使用后失效
     std::cout << "AddSpeed effect applied. Tank movement speed increased by " << speedIncreaseAmount
-              << " for " << duration.asSeconds() << " seconds. Tool deactivated." << std::endl;
+              << " for " << duration.asSeconds() << " seconds. Props deactivated." << std::endl;
 }

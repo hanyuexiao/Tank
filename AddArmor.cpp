@@ -27,5 +27,5 @@ void AddArmor::applyEffect(Tank &tank, Game &gameContext) {
 
     // 道具使用后通常会失效
     this->setActive(false);
-    std::cout << "AddArmor effect applied. Tool deactivated." << std::endl;
+    std::cout << "AddArmor effect applied. Props deactivated." << std::endl;
 }

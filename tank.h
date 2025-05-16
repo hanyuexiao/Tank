@@ -28,7 +28,7 @@ protected:
     float m_baseSpeed;
     sf::Time m_movementSpeedBuffDuration;
     bool m_isMovementSpeedBuffActive;
-
+    std::string m_tankType;           // 坦克类型，例如 "player", "enemy", "boss" 等
     // 射击相关
     sf::Time m_shootCooldown;            // 射击的最小时间间隔 (冷却时间)
     sf::Time m_shootTimer;               // 自上次射击以来经过的时间，用于计算冷却
@@ -47,20 +47,18 @@ protected:
     int m_armor;
     static const int MAX_ARMOR = 1;
 
-    // 内部辅助函数
-    void loadTextures();                 // 私有方法，用于加载坦克所需的所有纹理
-
 public:
     // 构造函数与析构函数
     // 参数: startPosition - 初始位置, direction - 初始方向, speed - 移动速度,
     //       frameWidth - 帧宽, frameHeight - 帧高, health - 初始生命值, max_health - 最大生命值
-    Tank(sf::Vector2f startPosition, Direction direction, float speed = 100.f, int frameWidth = 50, int frameHeight = 50, int initialHealth = 100,int m_arrmor = 0);
+    Tank(sf::Vector2f startPosition, Direction startDirection, const std::string& tankType, Game& game,
+               float speed, int frameWidth, int frameHeight, int iniHealth, int armor);
     virtual ~Tank() = default;           // 虚析构函数，确保派生类的析构函数被正确调用
 
     // 核心功能方法
     void draw(sf::RenderWindow& window); // 将坦克绘制到指定的渲染窗口
-    virtual void update(sf::Time dt);    // 更新坦克状态 (例如动画、射击冷却计时器等)，dt 是帧间隔时间
-    void setDirection(Direction dir);    // 设置坦克的新方向，并更新纹理
+    virtual void update(sf::Time dt, Game& game);    // 更新坦克状态 (例如动画、射击冷却计时器等)，dt 是帧间隔时间
+    void setDirection(Direction dir, Game& game);   // 设置坦克的新方向，并更新纹理
     void move(sf::Vector2f targetPosition, const Map& map); //尝试将坦克移动到目标位置，会进行地图碰撞检测
     std::unique_ptr<Bullet> shoot(Game& gameInstance); // 创建并发射一颗子弹，返回子弹对象的智能指针
 
@@ -91,7 +89,7 @@ public:
      int getHealth() const { return m_health; } // 获取当前生命值
      int getMaxHealth() const { return m_MaxHealth; } // 获取最大生命值
      bool isDestroyed() const { return m_Destroyed; } // 判断坦克是否已被摧毁
-     void revive(sf::Vector2f position, Direction direction); // 复活/重置坦克状态
+     void revive(sf::Vector2f position, Direction direction, Game& game);// 复活/重置坦克状态
      void setArmor(int newArmor);
      void activateAttackBuff(float multiplier,sf::Time duration);
      int getCurrentAttackPower() const;
@@ -99,6 +97,8 @@ public:
 
      void setSpeed(float newSpeed);
      void activateMovementSpeedBuff(float increaseAmount,sf::Time duration);
+
+     const std::string& getTankType() const { return m_tankType; }
 };
 
 #endif // TANK_H

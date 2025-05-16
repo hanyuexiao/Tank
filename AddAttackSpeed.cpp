@@ -14,5 +14,5 @@ void AddAttackSpeed::applyEffect(Tank &tank, Game &gameContext) {
     tank.activateAttackSpeedBuff(cooldownMultiplier, duration); // 假设Tank类有此方法
 
     this->setActive(false); // 道具使用后失效
-    std::cout << "AddAttackSpeed effect applied. Tank attack speed will be *1.5 for 3 seconds. Tool deactivated." << std::endl;
+    std::cout << "AddAttackSpeed effect applied. Tank attack speed will be *1.5 for 3 seconds. Props deactivated." << std::endl;
 }

@@ -23,5 +23,5 @@ void SlowDownAI::applyEffect(Tank &pickerUpperTank, Game &gameContext) {
     }
 
     this->setActive(false);
-    std::cout << "SlowDownAI effect applied to all AI tanks for 10s. Tool deactivated." << std::endl;
+    std::cout << "SlowDownAI effect applied to all AI tanks for 10s. Props deactivated." << std::endl;
 }

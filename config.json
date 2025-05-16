@@ -1,0 +1,38 @@
+{
+  "textures": {
+    "props": {
+      "add_armor": "C:/Users/admin/CLionProjects/Tanks/Props/add_armor.png",
+      "add_attack": "C:/Users/admin/CLionProjects/Tanks/Props/add_attack.png",
+      "add_attack_speed": "C:/Users/admin/CLionProjects/Tanks/Props/add_attack_speed.png",
+      "add_speed": "C:/Users/admin/CLionProjects/Tanks/Props/add_speed.png",
+      "grenade": "C:/Users/admin/CLionProjects/Tanks/Props/grenade.png",
+      "slow_down_ai": "C:/Users/admin/CLionProjects/Tanks/Props/slow_down_ai.png"
+    },
+    "map_tiles": {
+      "grass": "C:/Users/admin/CLionProjects/Tanks/Wall/block.png",
+      "brick_wall": "C:/Users/admin/CLionProjects/Tanks/Wall/brick.png",
+      "steel_wall": "C:/Users/admin/CLionProjects/Tanks/Wall/steelWall.png",
+      "base": "C:/Users/admin/CLionProjects/Tanks/Wall/base.png"
+    },
+    "tanks": {
+      "player": {
+        "up": ["C:/Users/admin/CLionProjects/Tanks/tank/tank_up_0.png", "C:/Users/admin/CLionProjects/Tanks/tank/tank_up_1.png"],
+        "down": ["C:/Users/admin/CLionProjects/Tanks/tank/tank_down_0.png", "C:/Users/admin/CLionProjects/Tanks/tank/tank_down_1.png"],
+        "left": ["C:/Users/admin/CLionProjects/Tanks/tank/tank_left_0.png", "C:/Users/admin/CLionProjects/Tanks/tank/tank_left_1.png"],
+        "right": ["C:/Users/admin/CLionProjects/Tanks/tank/tank_right_0.png", "C:/Users/admin/CLionProjects/Tanks/tank/tank_right_1.png"]
+      },
+      "ai_default": {
+        "up": ["C:/Users/admin/CLionProjects/Tanks/tank_ai/ai_tank_up_0.png", "C:/Users/admin/CLionProjects/Tanks/tank_ai/ai_tank_up_1.png"],
+        "down": ["C:/Users/admin/CLionProjects/Tanks/tank_ai/ai_tank_down_0.png", "C:/Users/admin/CLionProjects/Tanks/tank_ai/ai_tank_down_1.png"],
+        "left": ["C:/Users/admin/CLionProjects/Tanks/tank_ai/ai_tank_left_0.png", "C:/Users/admin/CLionProjects/Tanks/tank_ai/ai_tank_left_1.png"],
+        "right": ["C:/Users/admin/CLionProjects/Tanks/tank_ai/ai_tank_right_0.png", "C:/Users/admin/CLionProjects/Tanks/tank_ai/ai_tank_right_1.png"]
+      }
+    },
+    "bullets": {
+      "up": "C:/Users/admin/CLionProjects/Tanks/Bullet_img/bullet_up.png",
+      "down": "C:/Users/admin/CLionProjects/Tanks/Bullet_img/bullet_down.png",
+      "left": "C:/Users/admin/CLionProjects/Tanks/Bullet_img/bullet_left.png",
+      "right": "C:/Users/admin/CLionProjects/Tanks/Bullet_img/bullet_right.png"
+    }
+  }
+}
