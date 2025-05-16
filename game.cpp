@@ -38,20 +38,36 @@ void Game::init() {
     std::cout << "Player tank loaded successfully." << std::endl;
 
     //加载AI坦克
-    auto aiTankOwner = std::make_unique<AITank>(sf::Vector2f(1230.f, 200.f), Direction::UP, 60.f); // 示例初始位置和速度
-    AITank* pAiTank = dynamic_cast<AITank*>(aiTankOwner.get());
+    auto aiTank1 = std::make_unique<AITank>(sf::Vector2f(1230.f, 300.f), Direction::UP, 30.f);
+    auto aiTank2 = std::make_unique<AITank>(sf::Vector2f(600.f, 300.f), Direction::UP, 30.f);
+    auto aiTank3 = std::make_unique<AITank>(sf::Vector2f(700.f, 300.f), Direction::UP, 30.f);
+    auto aiTank4 = std::make_unique<AITank>(sf::Vector2f(200.f, 300.f), Direction::UP, 30.f);
 
-    if (pAiTank) {
-        sf::Vector2i baseTile = m_map.getBaseTileCoordinate();
-        if (baseTile.x != -1 && baseTile.y != -1) { // 确保获取到有效的大本营位置600
-            pAiTank->setStrategicTargetTile(baseTile);
-        } else {
-            std::cerr << "Game: Failed to get base tile coordinate for AI setup." << std::endl;
-            // 可以给AI一个默认巡逻点或让其待机
-            // pAiTank->setStrategicTargetTile(sf::Vector2i(m_map.getMapWidth()/2, m_map.getMapHeight()/2)); // 例如，地图中心
+    // 将所有AI坦克先存入一个临时vector，方便统一处理
+    std::vector<AITank*> ai_raw_pointers;
+    if (auto ptr = dynamic_cast<AITank*>(aiTank1.get())) ai_raw_pointers.push_back(ptr);
+    if (auto ptr = dynamic_cast<AITank*>(aiTank2.get())) ai_raw_pointers.push_back(ptr);
+    if (auto ptr = dynamic_cast<AITank*>(aiTank3.get())) ai_raw_pointers.push_back(ptr);
+    if (auto ptr = dynamic_cast<AITank*>(aiTank4.get())) ai_raw_pointers.push_back(ptr);
+
+    sf::Vector2i baseTile = m_map.getBaseTileCoordinate();
+    if (baseTile.x != -1 && baseTile.y != -1) {
+        for (AITank* pAiTank : ai_raw_pointers) { // 遍历所有获取到的AI坦克指针
+            if (pAiTank) {
+                pAiTank->setStrategicTargetTile(baseTile); // 为每一个AI坦克设置目标
+                std::cout << "AI Tank at (" << pAiTank->get_position().x << ", " << pAiTank->get_position().y
+                          << ") target set to base." << std::endl;
+            }
         }
+    } else {
+        std::cerr << "Game: Failed to get base tile coordinate for AI setup. All AI will idle." << std::endl;
+        // 如果获取不到基地位置，所有AI都不会设置目标，因此都不会移动（除非你有其他逻辑）
     }
-    m_all_tanks.push_back(std::move(aiTankOwner));
+
+    m_all_tanks.push_back(std::move(aiTank1));
+    m_all_tanks.push_back(std::move(aiTank2));
+    m_all_tanks.push_back(std::move(aiTank3));
+    m_all_tanks.push_back(std::move(aiTank4));
     // 创建窗口
     // 加载资源
     // 初始化游戏状态
@@ -153,27 +169,39 @@ void Game::end() {
 }
 
 void Game::update(sf::Time dt) {
-    // 1. 处理输入 (玩家移动、射击等)
-    //    (这部分可能在 Handling_events 中，但最终效果会影响坦克状态)
-
+    // 1. 更新所有坦克的基础状态 (动画、通用计时器等)
+    //    这个循环可以保持，它调用的是 Tank::update() 或其派生类的覆盖版本
     for(auto& tankPtr : m_all_tanks) {
-        if(tankPtr && !tankPtr->isDestroyed() && tankPtr) {
-            tankPtr->update(dt);
+        if(tankPtr && !tankPtr->isDestroyed()) { // 移除了多余的 tankPtr 检查
+            tankPtr->update(dt); // 这会调用 PlayerTank::update 或 AITank::update
         }
     }
 
-
-    // 2. 更新所有坦克的状态 (AI决策、移动、动画)
+    // 2. 更新AI坦克的特定逻辑 (移动决策、格子间移动、自动射击)
     for (auto& tankPtr : m_all_tanks) {
-        if (tankPtr && !tankPtr->isDestroyed()) { // 只更新存活的坦克
+        if (tankPtr && !tankPtr->isDestroyed()) {
             AITank* aiTankPtr = dynamic_cast<AITank*>(tankPtr.get());
-            if (aiTankPtr) {
+            if (aiTankPtr) { // 这是AI坦克
+                // AI移动逻辑
                 if (!aiTankPtr->isMoving()) {
                     aiTankPtr->decideNextAction(m_map, m_playerTankPtr);
                 }
-                aiTankPtr->updateMovementBetweenTiles(dt, m_map); // 内部调用 Tank::move
+                aiTankPtr->updateMovementBetweenTiles(dt, m_map);
+
+                // AI自动射击逻辑
+                if (aiTankPtr->canShootAI()) { // 使用AITank特定的冷却检查
+                    // 可选：增加一些条件，比如AI是否看到玩家，或者是否处于攻击姿态等
+                    // if (aiTankPtr->hasLineOfSightTo(m_playerTankPtr) && !aiTankPtr->isMoving()) {
+                    std::unique_ptr<Bullet> newBullet = aiTankPtr->shoot(*this); // 调用基类的shoot或AITank重写的shoot
+                    if (newBullet) {
+                        m_bullets.push_back(std::move(newBullet));
+                        aiTankPtr->resetShootTimerAI(); // 重置AI的计时器并生成新CD
+                        std::cout << "AI Tank shot a bullet." << std::endl;
+                    }
+                    // }
+                }
             }
-            tankPtr->update(dt); // Tank基类的update (例如动画、射击冷却计时器)
+            // PlayerTank的移动和射击在 Handling_events 中处理，这里不需要特别为PlayerTank做什么
         }
     }
 
@@ -218,13 +246,27 @@ void Game::update(sf::Time dt) {
         }
     }
     //    b. 子弹与地图的碰撞
+// --- 子弹与地图的碰撞检测 ---
     for (auto& bullet : m_bullets) {
-        if (bullet && bullet->isAlive()) {
-            // ... (子弹与地图碰撞逻辑，可能使子弹setIsAlive(false)) ...
+        if (bullet && bullet->isAlive()) { // 检查子弹是否有效且存活
+            sf::Vector2f bulletPos = bullet->getPosition(); // 获取子弹当前位置
+            // 将子弹的像素位置转换为地图的瓦片索引
+            int tileX = static_cast<int>(bulletPos.x / m_map.getTileWidth());
+            int tileY = static_cast<int>(bulletPos.y / m_map.getTileHeight());
+
+            // 在检查瓦片之前，确保瓦片坐标在地图边界内
+            if (tileX >= 0 && tileX < m_map.getMapWidth() && tileY >= 0 && tileY < m_map.getMapHeight()) {
+                if (!m_map.isTileWalkable(tileX, tileY)) { // 假设 isTileWalkable 返回 false 表示该瓦片对子弹是障碍物
+                    // 你可能需要一个更具体的检查。例如，某些对坦克不可通行的瓦片，子弹可能可以穿透，反之亦然。
+                    // 或者某些瓦片是可被子弹破坏的。
+                    std::cout << "子弹击中地图瓦片 (" << tileX << ", " << tileY << ")" << std::endl;
+                    bullet->setIsAlive(false); // 子弹失效
+                    // 可选：处理瓦片被破坏的逻辑
+                    // m_map.destroyTile(tileX, tileY);
+                }
+            }
         }
     }
-    //    c. 坦克与坦克的碰撞 (如果需要)
-    //    d. 坦克与地图的碰撞 (这通常在坦克的 move 方法内部处理，但广义上也属于碰撞)
 
     // 5. 清理不再存活的实体
     //    a. 清理子弹 (那些 isAlive() 返回 false 的)

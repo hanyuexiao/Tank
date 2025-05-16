@@ -94,42 +94,153 @@ sf::Vector2i Map::getBaseTileCoordinate() const {
 // --- 私有的地图布局初始化函数 ---
 void Map::initMapLayout() {
     // 定义地图尺寸
-    m_mapHeight = 15; // 例如 15 行
-    m_mapWidth = 30;  // 例如 30 列
+    m_mapHeight = 15; // 15 行
+    m_mapWidth = 30;  // 30 列
 
-    // 初始化 m_layout 为全 0 (空地)
+    // 初始化 m_layout 为全 0 (空地/草地)
     m_layout = std::vector<std::vector<int>>(m_mapHeight, std::vector<int>(m_mapWidth, 0));
 
-    // --- 在这里填充你的固定地图布局 ---
-    // 例子：添加边界钢墙
-    for(int y = 0; y < m_mapHeight; ++y) {
-        if (y == 0 || y == m_mapHeight - 1) { // 上下边界
-            for (int x = 0; x < m_mapWidth; ++x) m_layout[y][x] = 2; // 钢墙
-        } else {
-            m_layout[y][0] = 2; // 左边界
-            m_layout[y][m_mapWidth - 1] = 2; // 右边界
+    // 1. --- 添加完整的边界钢墙 (ID 2) ---
+    // 确保边界是坚不可摧的钢墙
+    for (int y = 0; y < m_mapHeight; ++y) {
+        for (int x = 0; x < m_mapWidth; ++x) {
+            if (y == 0 || y == m_mapHeight - 1 || x == 0 || x == m_mapWidth - 1) {
+                m_layout[y][x] = 2; // 钢墙边界
+            }
         }
     }
 
-    // 例子：放置基地 (ID 3) 在底部中间
-    int basePosX = m_mapWidth / 2;
-    m_layout[m_mapHeight - 2][basePosX -1] = 1; // 基地左边砖
-    m_layout[m_mapHeight - 2][basePosX] = 1;   // 基地上方砖
-    m_layout[m_mapHeight - 2][basePosX +1] = 1; // 基地右边砖
-    m_layout[m_mapHeight - 1][basePosX -1] = 1; // 基地左下方砖 (边界已经是钢墙了)
-    m_layout[m_mapHeight - 1][basePosX] = 3;   // 基地 E
-    m_layout[m_mapHeight - 1][basePosX +1] = 1; // 基地右下方砖 (边界已经是钢墙了)
+    // 2. --- 放置基地 (ID 3) 及其保护砖墙 (ID 1) ---
+    int basePosX = m_mapWidth / 2; // 通常是 15
 
+    // 基地周围的保护砖墙 (确保它们在边界内)
+    m_layout[m_mapHeight - 1][basePosX] = 3;   // 基地核心 (E)，它会覆盖底部边界的钢墙
+    // 为了让基地不直接贴着底部钢墙边界，我们通常会把基地放在倒数第二行，并用砖保护
+    // 如果基地必须在最后一行，那它会替换掉那里的钢墙，这是正常的。
 
-    // 例子：添加一些内部障碍物
-    for (int i = 5; i < 10; ++i) {
-        m_layout[i][m_mapWidth / 4] = 1; // 一列砖墙
-        m_layout[i][m_mapWidth * 3 / 4] = 2; // 一列钢墙
+    // 调整基地保护，使其在钢墙边界内有效
+    // 如果基地在 m_mapHeight - 1 行，则其上方的保护在 m_mapHeight - 2 行
+    if (m_mapHeight > 1) { // 确保至少有两行
+        m_layout[m_mapHeight - 2][basePosX] = 1;   // 基地正上方砖
+        if (basePosX > 0) m_layout[m_mapHeight - 2][basePosX - 1] = 1; // 基地左上方砖
+        if (basePosX < m_mapWidth - 1) m_layout[m_mapHeight - 2][basePosX + 1] = 1; // 基地右上方砖
+        if (basePosX > 0) m_layout[m_mapHeight - 1][basePosX - 1] = 1; // 基地左边砖 (会覆盖钢墙)
+        if (basePosX < m_mapWidth - 1) m_layout[m_mapHeight - 1][basePosX + 1] = 1; // 基地右边砖 (会覆盖钢墙)
+    }
+    // 确保基地前方有出口，如果基地被完全包围
+    if (m_mapHeight > 2) {
+        m_layout[m_mapHeight - 3][basePosX] = 0; // 基地更上方留出空地作为路径一部分
     }
 
-    std::cout << "Map layout initialized (" << m_mapHeight << "x" << m_mapWidth << ")." << std::endl;
-}
 
+    // 3. --- 设计内部迷宫结构 (砖墙 ID 1, 钢墙 ID 2) ---
+    // 所有设计都在 y=1 到 m_mapHeight-2 和 x=1 到 m_mapWidth-2 的范围内进行
+
+    // 行 2 (从边界内开始)
+    for (int x = 1; x < m_mapWidth - 1; ++x) {
+        if (x > 2 && x < m_mapWidth - 3 && (x % 4 == 0 || x % 4 == 1) ) {
+            m_layout[2][x] = 1;
+        }
+    }
+    m_layout[2][m_mapWidth / 2 - 2] = 0; // 留出通道
+    m_layout[2][m_mapWidth / 2 + 2] = 0;
+
+    // 行 4
+    for (int x = 1; x < m_mapWidth - 1; ++x) {
+        if (x > 1 && x < m_mapWidth - 5 && (x % 5 == 0 || x % 5 == 1 || x % 5 == 2)) {
+            m_layout[4][x] = 1;
+        }
+    }
+    if (m_mapWidth > 6) { // 确保索引有效
+        m_layout[4][3] = 0; m_layout[4][4] = 0;
+        m_layout[4][m_mapWidth - 4] = 0; m_layout[4][m_mapWidth - 3] = 0;
+    }
+
+
+    // 行 6 (一些垂直的墙)
+    int vWall1_X = m_mapWidth / 4;
+    int vWall2_X = m_mapWidth * 3 / 4;
+    for (int y = 1; y < 8; ++y) { // 从边界内开始，不要触碰上下边界
+        if (y == 0 || y == m_mapHeight -1) continue; // 跳过最外层边界
+        if (vWall1_X > 0 && vWall1_X < m_mapWidth -1) {
+            m_layout[y][vWall1_X] = 1;
+            m_layout[y][vWall1_X + 1] = 2;
+        }
+        if (vWall2_X > 0 && vWall2_X < m_mapWidth -1) {
+            m_layout[y][vWall2_X - 1] = 2;
+            m_layout[y][vWall2_X] = 1;
+        }
+    }
+    if (vWall1_X > 0 && vWall1_X < m_mapWidth -1) m_layout[5][vWall1_X] = 0; // 开口
+    if (vWall2_X > 0 && vWall2_X < m_mapWidth -1) m_layout[5][vWall2_X] = 0; // 开口
+
+
+    // 行 8
+    for (int x = 1; x < m_mapWidth - 1; ++x) {
+        if (x < 5 || x > m_mapWidth - 6) { // 靠近左右边界的区域保持一些空旷
+            // m_layout[8][x] = 0; // 已经是0了
+        } else if (x % 3 == 0) {
+            m_layout[8][x] = 1;
+        }
+    }
+    if (m_mapWidth/2 > 0 && m_mapWidth/2 < m_mapWidth -1) m_layout[8][m_mapWidth/2] = 0;
+
+
+    // 行 10
+    for (int x = 1; x < m_mapWidth - 1; ++x) {
+        if ( (x > m_mapWidth/2 -3 && x < m_mapWidth/2+3)) {
+            // m_layout[10][x] = 0; // 已经是0了
+        } else if (x > 3 && x < m_mapWidth -4 && (x % 6 == 0 || x % 6 == 1 || x % 6 == 2 || x % 6 == 3) ) {
+            m_layout[10][x] = 1;
+        }
+    }
+
+    // 行 12 (靠近基地，m_mapHeight-3)
+    if (m_mapHeight > 3) {
+        for (int x = 1; x < m_mapWidth - 1; ++x) {
+            if (x == basePosX || x == basePosX - 1 || x == basePosX + 1 || x == basePosX -2 || x == basePosX + 2 ) {
+                //基地前方区域
+            } else if (x > 1 && x < m_mapWidth -2 && (x % 4 == 0 || x % 4 == 1) ) {
+                m_layout[m_mapHeight - 3][x] = 1;
+            }
+        }
+        if (basePosX - 3 > 0) m_layout[m_mapHeight - 3][basePosX - 3] = 2;
+        if (basePosX + 3 < m_mapWidth -1) m_layout[m_mapHeight - 3][basePosX + 3] = 2;
+    }
+
+
+    // 一些内部的钢墙块 (ID 2) 增加障碍，确保它们不在边界上
+    if (m_mapHeight > 4 && m_mapWidth > 7) {
+        m_layout[3][5] = 2;
+        m_layout[3][m_mapWidth - 6] = 2;
+    }
+    if (m_mapHeight > 8 && m_mapWidth > 10) {
+        m_layout[7][8] = 2;
+        m_layout[7][m_mapWidth - 9] = 2;
+    }
+    if (m_mapHeight > 12 && m_mapWidth > 5) {
+        m_layout[11][3] = 2;
+        m_layout[11][m_mapWidth - 4] = 2;
+    }
+
+    // 4. --- 确保玩家和AI出生点可通行且在边界内 ---
+    // 玩家出生点大概在 (1,1) 到 (3,3) 这个区域内（从1开始计数，非0）
+    // 确保这些格子是0 (通路)
+    if (m_mapHeight > 3 && m_mapWidth > 3) {
+        m_layout[1][1] = 0; m_layout[1][2] = 0; m_layout[1][3] = 0;
+        m_layout[2][1] = 0; m_layout[2][2] = 0;
+        m_layout[3][1] = 0;
+    }
+
+    // AI 出生点大概在右上角区域内
+    if (m_mapHeight > 3 && m_mapWidth > 3) {
+        m_layout[1][m_mapWidth - 2] = 0; m_layout[1][m_mapWidth - 3] = 0; m_layout[1][m_mapWidth - 4] = 0;
+        m_layout[2][m_mapWidth - 2] = 0; m_layout[2][m_mapWidth - 3] = 0;
+        m_layout[3][m_mapWidth - 2] = 0;
+    }
+
+    std::cout << "Map layout initialized (" << m_mapHeight << "x" << m_mapWidth << ") with internal maze structure and solid borders." << std::endl;
+}
 
 // --- 绘制函数 ---
 void Map::draw(sf::RenderWindow &window) {

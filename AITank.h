@@ -4,6 +4,7 @@
 #ifndef AITANK_H
 #define AITANK_H
 
+#include <random>
 #include "Tank.h"
 #include "Map.h"  // For Map reference
 
@@ -22,7 +23,20 @@ public:
 
     bool isMoving() const { return m_isMovingToNextTile; }
 
+    bool canShootAI() const;
+
+    void resetShootTimerAI();
+
+    void update(sf::Time dt)override;
 private:
+    sf::Time m_aiShootCooldown;
+    sf::Time m_aiShootTimer;
+
+    std::mt19937 m_rng;
+    std::uniform_real_distribution<float> m_cooldownDistribution;
+
+    void generateNewRandomCooldown();
+
     bool m_isMovingToNextTile;         // 坦克当前是否正在从一个格子移动到下一个格子
     sf::Vector2f m_pixelTargetForTileMove; // 当前格子间移动的目标像素位置 (下一个格子的中心)
     Direction m_intendedDirectionForTileMove; // 本次格子移动的预定方向

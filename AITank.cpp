@@ -7,10 +7,36 @@
 
 AITank::AITank(sf::Vector2f startPosition, Direction direction, float speed, int frameWidth, int frameHeight,int inihp)
         : Tank(startPosition, direction, speed, frameWidth, frameHeight,inihp),
-          m_isMovingToNextTile(false), m_hasStrategicTarget(false) {
+          m_isMovingToNextTile(false),
+          m_hasStrategicTarget(false),
+          m_aiShootTimer(sf::Time::Zero),
+          m_rng(std::random_device{}()),
+          m_cooldownDistribution(0.5f,2.0f){
     std::cout << "AITank (Tile-based) created. Speed: " << m_speed << std::endl;
+    generateNewRandomCooldown();
 }
 
+void AITank::generateNewRandomCooldown() {
+    m_aiShootTimer = sf::seconds(m_cooldownDistribution(m_rng));
+    std::cout << "New cooldown generated: " << m_aiShootTimer.asSeconds() << " seconds" << std::endl;
+}
+
+bool AITank::canShootAI() const {
+    return m_aiShootTimer >= m_aiShootCooldown;
+}
+
+void AITank::resetShootTimerAI() {
+    m_aiShootTimer = sf::Time::Zero;
+    generateNewRandomCooldown();
+}
+
+void AITank::update(sf::Time dt) {
+    Tank::update(dt);
+
+    if(m_aiShootTimer < m_aiShootCooldown) {
+        m_aiShootTimer += dt;
+    }
+}
 sf::Vector2i AITank::getCurrentTile(const Map& map) const {
     if (map.getTileWidth() == 0 || map.getTileHeight() == 0) return {-1, -1}; // 防止除零
     return {

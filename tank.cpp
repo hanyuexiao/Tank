@@ -89,69 +89,74 @@ void Tank::update(sf::Time dt) {
 }
 
 void Tank::move(sf::Vector2f targetPosition, const Map& map) {
-    // --- 步骤 1: 获取坦克在 *目标位置* 的边界框 ---
-    // 创建一个临时精灵副本，将其移动到 targetPosition，然后获取其边界框
-    // 这是为了确保我们是基于“如果坦克移动到那里”的情况来做碰撞检测
-    sf::Sprite prospectiveSprite = m_sprite; // 复制当前坦克的精灵状态
+    // --- 步骤 1: 获取坦克在 *目标位置* 的原始边界框 ---
+    sf::Sprite prospectiveSprite = m_sprite;
+    prospectiveSprite.setPosition(targetPosition);
+    sf::FloatRect originalTankBoundsAtTarget = prospectiveSprite.getGlobalBounds();
 
-    // !! 关键: 确保 prospectiveSprite 使用的是正确的纹理，
-    // !! 特别是如果调用 move 之前，坦克的方向 (m_direction) 和对应的纹理 (m_sprite.setTexture) 已经更新了。
-    // !! 如果 m_sprite 已经是最新方向的纹理，直接复制就行。
-    // !! 如果不是，或者不确定，可以根据 m_direction 重新设置 prospectiveSprite 的纹理：
-    // prospectiveSprite.setTexture(m_textures[static_cast<int>(m_direction) * 2 + m_currentFrame]); // 假设每方向2帧
+    // --- 调整：略微缩小用于碰撞检测的边界框 ---
+    // 这有助于坦克更好地适应与其视觉大小相同的格子间隙，
+    // 以补偿浮点数精度和精确边缘对齐带来的问题。
+    // 'shrinkValue' 的值决定了检测框在每个方向上缩小的像素值。
+    // 例如，0.5f 意味着检测框的宽度和高度各减少1个像素。
+    const float shrinkValue = 2.f; // 可以尝试 0.1f 到 1.0f 之间的值
+    sf::FloatRect checkingBounds = originalTankBoundsAtTarget;
 
-    prospectiveSprite.setPosition(targetPosition); // 将副本精灵设置到目标位置
-    sf::FloatRect tankBoundsAtTarget = prospectiveSprite.getGlobalBounds(); // 获取在这个目标位置的全局边界框
+    // 确保缩小后的宽高仍然为正
+    if (checkingBounds.width > 2 * shrinkValue && checkingBounds.height > 2 * shrinkValue) {
+        checkingBounds.left += shrinkValue;
+        checkingBounds.top += shrinkValue;
+        checkingBounds.width -= 2 * shrinkValue;  // 总宽度减少 2 * shrinkValue
+        checkingBounds.height -= 2 * shrinkValue; // 总高度减少 2 * shrinkValue
+    }
+    // --- 调整结束 ---
 
-    // --- 调试打印：输出目标位置和计算出的预期边界框 ---
-    std::cout << "Tank::move want to move: (" << targetPosition.x << ", " << targetPosition.y << ")" << std::endl;
-    // 打印当前坦克的 m_direction 枚举值，方便追踪
-    // 你可能需要根据你的 Direction 枚举定义来决定如何打印，static_cast<int> 是一个简单方法
-    std::cout << "  hope direction: (m_direction): " << static_cast<int>(m_direction) << std::endl;
-    // --- 步骤 2: 计算该边界框覆盖的地图瓦片范围 ---
-    int tileW = map.getTileWidth();   // 从 Map 对象获取瓦片宽度
-    int tileH = map.getTileHeight();  // 从 Map 对象获取瓦片高度
 
-    // 确保 tileW 和 tileH 不是0，避免除以0的错误
+    // --- 调试打印信息可以取消注释来观察边界框的变化 ---
+    // std::cout << "Tank::move 尝试移动至: (" << targetPosition.x << ", " << targetPosition.y << ")" << std::endl;
+    // std::cout << "  原始边界: L" << originalTankBoundsAtTarget.left << " T" << originalTankBoundsAtTarget.top << " W" << originalTankBoundsAtTarget.width << " H" << originalTankBoundsAtTarget.height << std::endl;
+    // std::cout << "  检测边界: L" << checkingBounds.left << " T" << checkingBounds.top << " W" << checkingBounds.width << " H" << checkingBounds.height << std::endl;
+
+
+    // --- 步骤 2: 计算调整后的检测边界框 (checkingBounds) 覆盖的地图瓦片范围 ---
+    int tileW = map.getTileWidth();
+    int tileH = map.getTileHeight();
+
     if (tileW <= 0 || tileH <= 0) {
-        std::cerr << "Error! Width: " << tileW << ", Height: " << tileH << std::endl;
-        return; // 或者其他错误处理
+        std::cerr << "错误! Tank::move 中的瓦片宽度或高度为零或负数。宽: " << tileW << ", 高: " << tileH << std::endl;
+        return;
     }
 
-    // 计算起始和结束的瓦片索引
-    // 注意：对于结束索引 (endX, endY)，从宽度/高度中减去一个极小值 (如 0.001f)
-    //       可以帮助更精确地处理当坦克边缘正好落在瓦片边界上的情况，
-    //       防止因浮点数精度问题或整数截断而错误地多检测一个瓦片。
-    int startX = static_cast<int>(tankBoundsAtTarget.left / tileW);
-    int startY = static_cast<int>(tankBoundsAtTarget.top / tileH);
-    int endX = static_cast<int>((tankBoundsAtTarget.left + tankBoundsAtTarget.width - 0.001f) / tileW);
-    int endY = static_cast<int>((tankBoundsAtTarget.top + tankBoundsAtTarget.height - 0.001f) / tileH);
+    // 使用调整后的 checkingBounds 进行计算
+    int startX = static_cast<int>(checkingBounds.left / tileW);
+    int startY = static_cast<int>(checkingBounds.top / tileH);
+    int endX = static_cast<int>((checkingBounds.left + checkingBounds.width - 0.001f) / tileW);
+    int endY = static_cast<int>((checkingBounds.top + checkingBounds.height - 0.001f) / tileH);
 
+    // ... (后续的碰撞检测循环逻辑保持不变, 使用 startX, startY, endX, endY) ...
 
-
-    // --- 步骤 3: 检查目标范围内的所有瓦片是否可通行 ---
     bool canMove = true;
-    // 添加一个检查，确保计算出的瓦片范围是有效的 (例如，坦克不是完全在瓦片外部)
+    // 添加一个检查，确保计算出的瓦片范围是有效的
     if (endX < startX || endY < startY) {
-        // 这个情况可能不应该发生，如果发生了，可能 tankBoundsAtTarget 或 tileW/H 有问题
-        std::cout << "  警告: 检查的瓦片范围无效 (end < start)!" << std::endl;
-        // 根据你的游戏逻辑，这里可能也应该视为 canMove = false;
+        // 如果 shrinkValue 相对于坦克尺寸过大，或者坦克在地图检测的有效区域之外，可能会发生这种情况。
+        // 根据地图设计，这可能意味着 canMove = false 或只是一个警告。
+        // 为安全起见，如果范围奇怪，则视为无法移动。
+        // 但如果 map.isTileWalkable 能够优雅地处理越界的 tileX/tileY（返回false），
+        // 并且下面的循环是稳健的，那么这个显式检查可能不是严格必需的。
+        // std::cout << "  警告: Tank::move 缩小后的检测瓦片范围无效 (end < start)。" << std::endl;
     }
 
     for (int y_tile = startY; y_tile <= endY; ++y_tile) {
         for (int x_tile = startX; x_tile <= endX; ++x_tile) {
-            // 调用 Map 对象的 isTileWalkable 来判断
-            // Map::isTileWalkable 内部应该有它自己的边界检查，
-            // 并且根据 m_layout[y_tile][x_tile] 的值来判断
             bool walkable = map.isTileWalkable(x_tile, y_tile);
-
+            // std::cout << "    检测瓦片 (" << x_tile << "," << y_tile << "): " << (walkable ? "可通行" : "阻塞") << std::endl;
             if (!walkable) {
                 canMove = false;
-                break; // 一旦遇到不可走的瓦片，就不需要再检查了
+                break;
             }
         }
         if (!canMove) {
-            break; // 跳出外层循环
+            break;
         }
     }
 
@@ -159,9 +164,9 @@ void Tank::move(sf::Vector2f targetPosition, const Map& map) {
     if (canMove) {
         m_position = targetPosition;       // 更新坦克的逻辑位置
         m_sprite.setPosition(m_position);  // 更新精灵的绘制位置
+    } else {
+        // std::cout << "  Tank::move 被阻塞。" << std::endl;
     }
-    // 如果 !canMove，坦克的位置 (m_position 和 m_sprite 的位置) 保持不变
-
 }
 
 std::unique_ptr<Bullet> Tank::shoot(Game& gameInstance) { // 接收 Game 对象的引用
