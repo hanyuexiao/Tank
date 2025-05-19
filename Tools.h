@@ -1,46 +1,91 @@
-//
-// Created by admin on 2025/4/30.
-//
 #ifndef TANKS_TOOLS_H
 #define TANKS_TOOLS_H
 
-#include "heads.h"
+// =========================================================================
+// 必要的头文件包含
+// =========================================================================
+#include "heads.h" // 包含项目通用的头文件 (SFML, iostream, etc.)
 
-class Tank;
-class Game;
+// =========================================================================
+// 前向声明 (Forward Declarations)
+// =========================================================================
+class Tank; // Tank 类，道具会与坦克交互并施加效果
+class Game; // Game 类，道具的效果可能需要访问或修改游戏状态
 
+// =========================================================================
+// Tools 基类定义 (所有道具的父类)
+// =========================================================================
 class Tools {
-    public:
-        Tools(sf::Vector2f position, const sf::Texture& texture, sf::Time lifetime);
-        Tools(sf::Vector2f position, const sf::Texture& texture);
-        virtual ~Tools() = default;
-        sf::FloatRect getBound() const;
+public:
+    // =========================================================================
+    // 构造函数与析构函数
+    // =========================================================================
+    // 参数:
+    //   position - 道具在地图上的初始位置 (通常是其中心点)
+    //   texture - 道具的纹理 (应已由Game类加载并传入)
+    //   lifetime - (可选) 道具的生命周期，即在地图上持续显示的时间。
+    //              如果未提供此参数，则使用默认的生命周期。
+    Tools(sf::Vector2f position, const sf::Texture& texture, sf::Time lifetime);
+    Tools(sf::Vector2f position, const sf::Texture& texture); // 使用默认生命周期的构造函数
+    virtual ~Tools() = default; // 虚析构函数，确保派生类的析构函数被正确调用
 
-        virtual void applyEffect(Tank& tank,Game& gameContext) = 0;
+    // =========================================================================
+    // 核心功能方法 (公共接口)
+    // =========================================================================
+    // 纯虚函数，必须由每个具体的道具派生类实现。
+    // 定义了当坦克拾取该道具时，道具应施加的具体效果。
+    // 参数:
+    //   tank - 拾取该道具的坦克对象。
+    //   gameContext - 对Game对象的引用，允许道具效果与游戏的其他部分交互
+    //                 (例如，修改所有AI坦克的状态，或访问地图信息)。
+    virtual void applyEffect(Tank& tank, Game& gameContext) = 0;
 
-        virtual void update(sf::Time dt);
+    // 更新道具的状态，主要用于处理生命周期倒计时。
+    // 如果道具超时，此方法会将其标记为不活动。
+    // 参数:
+    //   dt - 自上一帧以来经过的时间 (帧间隔时间)。
+    virtual void update(sf::Time dt);
 
-        void draw(sf::RenderWindow& window);
+    // 将道具绘制到指定的SFML渲染窗口。
+    // 只有当道具是活动状态时才会进行绘制。
+    void draw(sf::RenderWindow& window);
 
-        bool isActive() const;
+    // =========================================================================
+    // Getter 和 Setter 方法 (状态查询与修改)
+    // =========================================================================
+    // 获取道具的全局边界框 (sf::FloatRect)，主要用于碰撞检测。
+    // 如果道具不活动，返回一个空的边界框。
+    sf::FloatRect getBound() const;
 
-        void setActive(bool active);
+    // 检查道具当前是否处于活动状态。
+    // 活动状态意味着道具可见、可拾取且其效果尚未应用或超时。
+    bool isActive() const;
 
-        sf::Vector2f getPosition() const;
+    // 设置道具的活动状态。
+    // 通常在道具被拾取并应用效果后，或生命周期结束后，将其设置为不活动 (false)。
+    void setActive(bool active);
+
+    // 获取道具在地图上的当前位置 (中心点)。
+    sf::Vector2f getPosition() const;
 
 protected:
-        sf::Vector2f m_position;
+    // =========================================================================
+    // 受保护的成员变量 (派生类可以访问)
+    // =========================================================================
+    sf::Vector2f m_position;    // 道具在地图上的精确位置 (通常是其视觉中心)。
+    sf::Sprite m_sprite;        // 用于在屏幕上绘制道具的SFML精灵对象。
+    // 其纹理在构造时设置。
 
-        sf::Sprite m_sprite;
+    bool m_isActive;            // 标记道具是否仍然活动。true表示活动，false表示已拾取或超时。
 
-        bool m_isActive;
+    // 道具生命周期相关
+    sf::Time m_lifetime;        // 道具从生成开始可以在地图上存在的总时长。
+    sf::Time m_age;             // 道具自生成以来已经经过的时间。当m_age >= m_lifetime时，道具会失效。
 
-        sf::Texture m_Texture;//假设构造时传入纹理
-    //道具生命周期相关
-        sf::Time m_lifetime;       // 道具的总生命周期
-        sf::Time m_age;            // 道具已经存在的时间
-    sf::FloatRect getGlobalBounds();
+    // 注意: m_Texture (原始 sf::Texture) 在基类中通常不需要再次存储，
+    // 因为它在构造时通过引用传递并用于设置 m_sprite 的纹理。
+    // 如果派生类确实需要原始纹理对象（例如，用于更复杂的绘制或信息提取），
+    // 则可以考虑在派生类中存储或通过其他方式访问。
 };
-
 
 #endif //TANKS_TOOLS_H

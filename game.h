@@ -1,26 +1,31 @@
 #ifndef TANKS_GAME_H
 #define TANKS_GAME_H
 
-#include "heads.h"
-#include "Map.h"
-#include "tank.h"
-#include "Bullet.h"
-#include "common.h"
-#include "nlohmann/json.hpp"
+// 统一包含所有必要的头文件
+#include "heads.h"        // 项目通用头文件 (SFML, iostream, json, etc.)
+#include "Map.h"          // 地图类
+#include "tank.h"         // 坦克基类
+#include "Bullet.h"       // 子弹类
+#include "common.h"       // 通用定义 (如 Direction 枚举)
+#include "AITank.h"       // AI坦克类
+#include "Tools.h"        // 道具基类
+#include <random>         // For std::mt19937
 
-// 包含所有具体的道具类头文件
-#include "Tools.h"
-#include "AddArmor.h"
-#include "AddAttack.h"
-#include "AddAttackSpeed.h"
-#include "AddSpeed.h"
-#include "Grenade.h"
-#include "SlowDownAI.h"
-// 包含AI坦克头文件
-#include "AITank.h"
+// 前向声明 (Forward declarations)
+class PlayerTank; // 玩家坦克类
 
+// 游戏状态枚举
+enum class GameState {
+    MainMenu,
+    Playing1P,
+    LevelTransition, // 新增：用于显示关卡切换信息的状态
+    GameOver
+    // Settings, Playing2P 等可以保留用于未来扩展
+};
+
+// AI坦克类型配置结构体 (保持不变)
 struct AITankTypeConfig {
-    std::string typeName; // 例如 "ai_default", "ai_fast"
+    std::string typeName;
     std::string textureKey;
     float baseSpeed;
     int baseHealth;
@@ -29,117 +34,152 @@ struct AITankTypeConfig {
     int frameHeight;
     int scoreValue;
 };
-// 前向声明 (Forward declarations)
-class PlayerTank;
-// class AITank; // AITank.h 已经被包含了
-
-// 游戏状态枚举
-enum class GameState {
-    MainMenu,
-    Playing1P,
-    Playing2P,
-    Settings,
-    GameOver
-};
 
 class Game {
-
 public:
+    // =========================================================================
     // 构造函数与析构函数
+    // =========================================================================
     Game();
     ~Game();
 
+    // =========================================================================
     // 游戏流程控制方法
+    // =========================================================================
     void init();
     void run();
     void end();
 
-    // 窗口状态
+    // =========================================================================
+    // Getter 方法 - 游戏状态与对象访问
+    // =========================================================================
     bool isWindowOpen() const { return window.isOpen(); }
-
-    // 游戏对象管理
-    void addBullet(std::unique_ptr<Bullet> bullet);
-
-    // --- Getter 方法，用于游戏逻辑和对象交互 ---
-    std::vector<std::unique_ptr<Tank>>& getAllTanksForModification() { return m_all_tanks; }
-    PlayerTank* getPlayerTank() const { return m_playerTankPtr; }
     Map& getMap() { return m_map; }
     const Map& getMap() const { return m_map; }
+    PlayerTank* getPlayerTank() const { return m_playerTankPtr; }
+    std::vector<std::unique_ptr<Tank>>& getAllTanksForModification() { return m_all_tanks; }
     Bullet* getAvailableBullet();
-    // --- 纹理资源获取方法 ---
+    int getCurrentLevel() const { return m_currentLevel; } // 获取当前关卡
+
+    // =========================================================================
+    // Getter 方法 - 资源访问
+    // =========================================================================
     const sf::Texture& getTexture(const std::string& key) const;
     const std::vector<sf::Texture>& getTankTextures(const std::string& tankType, Direction dir) const;
 
 private:
-    // --- 内部初始化与加载方法 ---
-    bool loadConfig(const std::string& configPath);
-    bool loadTextureFromJson(const std::string& key, const std::string& path);
-    void loadToolTypesFromConfig(); // 从配置加载可用道具类型
-
-    // --- 核心游戏循环方法 ---
+    // =========================================================================
+    // 内部核心逻辑方法
+    // =========================================================================
     void Handling_events(sf::Time dt);
     void update(sf::Time dt);
     void render();
 
-    // --- 碰撞处理 ---
-    void resolveTankCollision(Tank* tank1, Tank* tank2);
-    void resolveTankToolCollision(Tank* tank, Tools* tool); // 处理坦克与道具碰撞
+    // =========================================================================
+    // 内部初始化与加载方法
+    // =========================================================================
+    bool loadConfig(const std::string& configPath);
+    bool loadTextureFromJson(const std::string& key, const std::string& path);
+    void loadToolTypesFromConfig();
+    void loadAITankConfigs();
+    void initializeBulletPool();
+    void setupLevel(); // 修改：用于设置或重置当前关卡
+    void advanceToNextLevel(); // 新增：进入下一关的逻辑
 
-    // --- 游戏核心数据成员 ---
+    // =========================================================================
+    // 碰撞处理方法 (保持不变)
+    // =========================================================================
+    void resolveTankCollision(Tank* tank1, Tank* tank2);
+    void resolveTankToolCollision(Tank* tank, Tools* tool);
+
+    // =========================================================================
+    // 游戏对象生成与管理方法 (保持不变)
+    // =========================================================================
+    void spawnRandomTool();
+    void updateTools(sf::Time dt);
+    void spawnNewAITank();
+    void updateAITankSpawning(sf::Time dt);
+    GameState getCurrentState() const { return state; }
+
+    // =========================================================================
+    // 核心游戏数据成员
+    // =========================================================================
     sf::RenderWindow window;
     GameState state;
     Map m_map;
+    sf::Clock clock;
+    std::mt19937 m_rng; // 随机数生成器，用于地图生成等
 
-    // --- 游戏实体管理 ---
+    // =========================================================================
+    // 游戏实体管理 (保持不变)
+    // =========================================================================
     std::vector<std::unique_ptr<Tank>> m_all_tanks;
     PlayerTank* m_playerTankPtr;
-    std::vector<std::unique_ptr<Bullet>> m_bullets;
-    std::vector<std::unique_ptr<Tools>> m_tools; // 存储游戏中所有道具
-    std::vector<std::unique_ptr<Bullet>> m_bulletPool; // 存储游戏中所有砖墙
-    const size_t INITIAL_BULLET_POOL_SIZE = 100;
-    void initializeBulletPool();
-    // --- 资源缓存 ---
+    std::vector<std::unique_ptr<Bullet>> m_bulletPool;
+    std::vector<std::unique_ptr<Tools>> m_tools;
+
+    // =========================================================================
+    // 资源缓存与配置 (保持不变)
+    // =========================================================================
     nlohmann::json m_configJson;
     std::map<std::string, sf::Texture> m_textureCache;
     std::map<std::string, std::map<Direction, std::vector<sf::Texture>>> m_tankTextureCache;
+    sf::Font m_uiFont;
 
-    // --- 游戏统计与状态 ---
+    // =========================================================================
+    // UI 文本元素
+    // =========================================================================
+    sf::Text m_baseHealthText;
+    sf::Text m_scoreText;
+    sf::Text m_playerStatsTitleText;
+    sf::Text m_playerHealthText;
+    sf::Text m_playerArmorText;
+    sf::Text m_playerAttackText;
+    sf::Text m_playerSpeedText;
+    sf::Text m_playerCooldownText;
+    sf::Text m_playerDestroyedText;
+    sf::Text m_currentLevelText;      // 新增：显示当前关卡
+    sf::Text m_levelTransitionMessageText; // 新增：显示 "Level X" 或 "Prepare for next level"
+    sf::Time m_levelTransitionDisplayTimer; // 新增：控制关卡切换信息显示时间
+
+    // =========================================================================
+    // 游戏统计与状态
+    // =========================================================================
     int score;
-    int life;
+    // int life; // 保留，如果需要生命机制
+    int m_currentLevel; // 新增：当前关卡号，从1开始
 
-    // --- 计时与同步 ---
-    sf::Clock clock;
+    // =========================================================================
+    // 道具生成相关配置与状态 (保持不变)
+    // =========================================================================
+    sf::Time m_toolSpawnInterval;
+    sf::Time m_toolSpawnTimer;
+    std::vector<std::string> m_availableToolTypes;
 
-    // --- 道具生成相关 ---
-    sf::Time m_toolSpawnInterval;       // 道具生成的时间间隔
-    sf::Time m_toolSpawnTimer;          // 道具生成计时器
-    std::vector<std::string> m_availableToolTypes; // 可生成的道具类型键名列表
-
-    void spawnRandomTool();             // 生成随机道具的方法
-    void updateTools(sf::Time dt);      // 更新道具状态和碰撞的方法
-
-    // --- AI坦克生成相关 ---
-    sf::Time m_aiTankSpawnInterval;     // AI坦克生成的时间间隔
-    sf::Time m_aiTankSpawnTimer;        // AI坦克生成计时器
-    int m_maxActiveAITanks;             // 屏幕上最大AI坦克数量
-
-    std::string m_defaultAITankType;    // 默认生成的AI坦克类型 (从config加载)
-    float m_defaultAITankSpeed;         // 默认生成的AI坦克速度
-    int m_defaultAIBaseHealth; // Game 成员变量
+    // =========================================================================
+    // AI坦克生成相关配置与状态 (保持不变)
+    // =========================================================================
+    sf::Time m_aiTankSpawnInterval;
+    sf::Time m_aiTankSpawnTimer;
+    int m_maxActiveAITanks;
+    std::map<std::string, AITankTypeConfig> m_aiTypeConfigs;
+    std::vector<std::string> m_availableAITankTypeNames;
+    float m_defaultAITankSpeed;
+    int m_defaultAIBaseHealth;
     int m_defaultAIBaseAttack;
-    void spawnNewAITank();              // 生成新AI坦克的方法
-    void updateAITankSpawning(sf::Time dt); // 更新AI坦克生成计时器
     int m_defaultAIFrameWidth;
     int m_defaultAIFrameHeight;
     int m_defaultAIScoreValue;
 
-    std::map<std::string ,AITankTypeConfig> m_aiTypeConfigs; // AI坦克类型配置表
-    std::vector<std::string >m_availableAITankTypeNames; // 可生成的AI坦克类型键名列表
-
-    void loadAITankConfigs(); // 加载AI坦克类型配置的方法
-
-
-
+    // =========================================================================
+    // 常量
+    // =========================================================================
+    const size_t INITIAL_BULLET_POOL_SIZE = 100;
+    // 新增：关卡分数阈值
+    static const int SCORE_THRESHOLD_LEVEL_2 = 200;
+    static const int SCORE_THRESHOLD_LEVEL_3 = 500; // 总分达到5000进入第三关 (2000 for L2 + 3000 more)
+    // 或者你可以设定为每关独立的增量分数
+    static const int MAX_LEVEL = 3; // 最大关卡数
 };
 
 #endif //TANKS_GAME_H

@@ -13,6 +13,7 @@ class Game;
 
 class PlayerTank : public Tank {
 public:
+    static int construction_count;
     // MODIFIED: 构造函数签名已更改
     // 参数:
     //   startPosition - 玩家坦克的初始位置

@@ -7,6 +7,7 @@
 // (即使基类 Tank 的头文件可能已间接包含，显式包含更清晰)
 #include <iostream>     // 用于调试输出 (例如 std::cout)
 
+int PlayerTank::construction_count = 0;
 // PlayerTank 构造函数实现
 // 参数:
 //   startPosition - 玩家坦克的初始世界坐标
@@ -48,6 +49,7 @@ PlayerTank::PlayerTank(sf::Vector2f startPosition,
                initialArmor,
                0)
 {
+    construction_count++;
     // 构造函数体
 
     // 调试输出，确认 PlayerTank 对象已创建，并显示其类型 (通过基类方法获取)

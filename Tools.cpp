@@ -6,8 +6,7 @@
 #include "Tools.h"
 #include "tank.h"
 
-Tools::Tools(sf::Vector2f position, const sf::Texture& texture):m_position(position),m_Texture(texture),m_isActive(true){
-    m_sprite.setTexture(m_Texture);
+Tools::Tools(sf::Vector2f position, const sf::Texture& texture):m_position(position),m_isActive(true){
     m_sprite.setPosition(position);
     sf::FloatRect bounds = m_sprite.getGlobalBounds();
     m_sprite.setOrigin(bounds.width / 2, bounds.height / 2);
@@ -18,11 +17,9 @@ Tools::Tools(sf::Vector2f position, const sf::Texture& texture):m_position(posit
 
 Tools::Tools(sf::Vector2f position, const sf::Texture& texture, sf::Time lifetime)
         : m_position(position),
-          m_Texture(texture),
           m_isActive(true),
           m_lifetime(lifetime), // 使用传入的生命周期
           m_age(sf::Time::Zero) {
-    m_sprite.setTexture(m_Texture);
     sf::FloatRect bounds = m_sprite.getLocalBounds();
     m_sprite.setOrigin(bounds.width / 2.f, bounds.height / 2.f);
     m_sprite.setPosition(m_position);

@@ -1,56 +1,61 @@
-// Map.h
-// Created by admin on 2025/4/30.
-//
+
 #ifndef TANKS_MAP_H
 #define TANKS_MAP_H
 
-#include "heads.h" // 包含项目通用的头文件 (SFML, iostream, vector, map, memory, etc.)
-#include <vector>   // 确保 std::vector 被包含
-#include <map>      // 确保 std::map 被包含 (虽然 m_textures 移除了，但以防万一其他地方可能间接用到)
+#include "heads.h"
+#include <vector>
+#include <map>
+#include <random> // For std::mt19937
 
-// 前向声明 Game 类，因为 Map 的方法现在需要 Game 的引用
-class Game;
+class Game; // Game的完整定义不需要，但Game&会用到
 
 class Map {
 private:
-    std::vector<std::vector<int>> m_layout;         // 地图布局 (整数编码)
+    std::vector<std::vector<int>> m_layout;
     std::vector<std::vector<int>> m_tileHealth;
-    sf::Sprite m_tileSprite;                        // 用于绘制的复用精灵
-    int m_tileWidth;                                // 图块宽度 (像素)
-    int m_tileHeight;                               // 图块高度 (像素)
-    int m_mapWidth;                                 // 地图宽度 (格子数)
-    int m_mapHeight;                                // 地图高度 (格子数)
+    sf::Sprite m_tileSprite;
+    int m_tileWidth;
+    int m_tileHeight;
+    int m_mapWidth;  // 地图宽度 (格子数)
+    int m_mapHeight; // 地图高度 (格子数)
 
-    int m_baseHealth; // 地图上每个图块的基础生命值
+    int m_baseHealth;
     bool m_isBaseDestroyed;
-    // bool loadTextures();                         // REMOVED: 纹理加载逻辑移至 Game 类
-    void initMapLayout();                           // 将初始化布局变为私有辅助函数
+
+    // void initMapLayout(); // 将被 generateLayout 取代或其逻辑并入
+    void initializeTileHealth(); // 新增：辅助函数，根据布局初始化砖墙血量
 
 public:
-
     static const int BRICK_INITIAL_HEALTH = 3;
-    static const int BASE_INITIAL_HEALTH = 200;
-    Map();                                          // 构造函数
-    // MODIFIED: load 方法现在需要 Game 引用来获取图块尺寸等信息
-    bool load(Game& game);
-    // MODIFIED: draw 方法现在需要 Game 引用来获取纹理
+    static const int BASE_INITIAL_HEALTH = 200; // 基地初始血量
+
+    // 地图瓦片类型ID (与config.json和Game::getTexture中的键名对应)
+    // 0: Grass (map_grass)
+    // 1: Brick Wall (map_brick_wall, map_brick_wall_damaged1, map_brick_wall_damaged2)
+    // 2: Steel Wall (map_steel_wall)
+    // 3: Base (map_base)
+    // 4: Water (map_water) - 新增
+    // 5: Forest (map_forest) - 新增
+
+    Map();
+    bool loadDimensionsAndTextures(Game& game); // 修改：只加载尺寸和纹理信息，布局由generateLayout处理
+    void generateLayout(int level, std::mt19937& rng, const Game& game); // 新增：根据关卡生成地图布局
     void draw(sf::RenderWindow &window, Game& game);
-    bool isTileWalkable(int tileX, int tileY) const;      // 判断某个格子是否可走
-    int getTileWidth() const { return m_tileWidth; };     // 获取图块宽度
-    int getTileHeight() const { return m_tileHeight; };   // 获取图块高度
+    bool isTileWalkable(int tileX, int tileY) const;
+    int getTileWidth() const { return m_tileWidth; };
+    int getTileHeight() const { return m_tileHeight; };
 
     sf::Vector2i getBaseTileCoordinate() const;
-    int getMapWidth() const { return m_mapWidth; }        // 确保有这些getter
+    int getMapWidth() const { return m_mapWidth; }
     int getMapHeight() const { return m_mapHeight; }
-    int getTileType(int tileX, int tileY) const;       // 获取某格子的类型
+    int getTileType(int tileX, int tileY) const;
 
-    int getTileHeath(int tileX, int tileY) const;
-    void damageTile(int tileX, int tileY, int damage,Game& game);
-    void damageBase(int damage);
+    int getTileHealth(int tileX, int tileY) const; // 获取砖墙血量
+    void damageTile(int tileX, int tileY, int damage, Game& game); // 砖墙受损
+    void damageBase(int damage); // 基地受损
     int getBaseHealth() const;
     bool isBaseDestroyed() const;
-    void resetMap(Game& game);
-
+    void resetForNewLevel(); // 新增：重置地图状态（血量等），但不重新生成布局
 };
 
 #endif //TANKS_MAP_H
