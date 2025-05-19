@@ -1,18 +1,22 @@
 {
   "textures": {
     "props": {
-      "add_armor": "C:/Users/admin/CLionProjects/Tanks/Props/add_armor.png",
-      "add_attack": "C:/Users/admin/CLionProjects/Tanks/Props/add_attack.png",
-      "add_attack_speed": "C:/Users/admin/CLionProjects/Tanks/Props/add_attack_speed.png",
-      "add_speed": "C:/Users/admin/CLionProjects/Tanks/Props/add_speed.png",
-      "grenade": "C:/Users/admin/CLionProjects/Tanks/Props/grenade.png",
-      "slow_down_ai": "C:/Users/admin/CLionProjects/Tanks/Props/slow_down_ai.png"
+      "add_armor": "C:/Users/admin/CLionProjects/Tanks/Props/AddArmor.png",
+      "add_attack": "C:/Users/admin/CLionProjects/Tanks/Props/AddAttack.png",
+      "add_attack_speed": "C:/Users/admin/CLionProjects/Tanks/Props/AddAttackSpeed.png",
+      "add_speed": "C:/Users/admin/CLionProjects/Tanks/Props/AddSpeed.png",
+      "grenade": "C:/Users/admin/CLionProjects/Tanks/Props/Grenade.png",
+      "slow_down_ai": "C:/Users/admin/CLionProjects/Tanks/Props/SlowDownAI.png"
     },
     "map_tiles": {
       "grass": "C:/Users/admin/CLionProjects/Tanks/Wall/block.png",
       "brick_wall": "C:/Users/admin/CLionProjects/Tanks/Wall/brick.png",
+      "brick_wall_damaged1": "C:/Users/admin/CLionProjects/Tanks/Wall/brick_damaged_1.png",
+      "brick_wall_damaged2": "C:/Users/admin/CLionProjects/Tanks/Wall/brick_damaged_2.png",
       "steel_wall": "C:/Users/admin/CLionProjects/Tanks/Wall/steelWall.png",
-      "base": "C:/Users/admin/CLionProjects/Tanks/Wall/base.png"
+      "base": "C:/Users/admin/CLionProjects/Tanks/Wall/base.png",
+      "water": "C:/Users/admin/CLionProjects/Tanks/Wall/water.png",
+      "forest": "C:/Users/admin/CLionProjects/Tanks/Wall/forest.png"
     },
     "tanks": {
       "player": {
@@ -26,6 +30,18 @@
         "down": ["C:/Users/admin/CLionProjects/Tanks/tank_ai/ai_tank_down_0.png", "C:/Users/admin/CLionProjects/Tanks/tank_ai/ai_tank_down_1.png"],
         "left": ["C:/Users/admin/CLionProjects/Tanks/tank_ai/ai_tank_left_0.png", "C:/Users/admin/CLionProjects/Tanks/tank_ai/ai_tank_left_1.png"],
         "right": ["C:/Users/admin/CLionProjects/Tanks/tank_ai/ai_tank_right_0.png", "C:/Users/admin/CLionProjects/Tanks/tank_ai/ai_tank_right_1.png"]
+      },
+      "ai_fast": {
+        "up": ["C:/Users/admin/CLionProjects/Tanks/ai_fast/ai_tank_up_0.png", "C:/Users/admin/CLionProjects/Tanks/ai_fast/ai_tank_up_1.png"],
+        "down": ["C:/Users/admin/CLionProjects/Tanks/ai_fast/ai_tank_down_0.png", "C:/Users/admin/CLionProjects/Tanks/ai_fast/ai_tank_down_1.png"],
+        "left": ["C:/Users/admin/CLionProjects/Tanks/ai_fast/ai_tank_left_0.png", "C:/Users/admin/CLionProjects/Tanks/ai_fast/ai_tank_left_1.png"],
+        "right": ["C:/Users/admin/CLionProjects/Tanks/ai_fast/ai_tank_right_0.png", "C:/Users/admin/CLionProjects/Tanks/ai_fast/ai_tank_right_1.png"]
+      },
+      "ai_tough": {
+        "up": ["C:/Users/admin/CLionProjects/Tanks/ai_tough/ai_tank_up_0.png", "C:/Users/admin/CLionProjects/Tanks/ai_tough/ai_tank_up_1.png"],
+        "down": ["C:/Users/admin/CLionProjects/Tanks/ai_tough/ai_tank_down_0.png", "C:/Users/admin/CLionProjects/Tanks/ai_tough/ai_tank_down_1.png"],
+        "left": ["C:/Users/admin/CLionProjects/Tanks/ai_tough/ai_tank_left_0.png", "C:/Users/admin/CLionProjects/Tanks/ai_tough/ai_tank_left_1.png"],
+        "right": ["C:/Users/admin/CLionProjects/Tanks/ai_tough/ai_tank_right_0.png", "C:/Users/admin/CLionProjects/Tanks/ai_tough/ai_tank_right_1.png"]
       }
     },
     "bullets": {
@@ -33,6 +49,48 @@
       "down": "C:/Users/admin/CLionProjects/Tanks/Bullet_img/bullet_down.png",
       "left": "C:/Users/admin/CLionProjects/Tanks/Bullet_img/bullet_left.png",
       "right": "C:/Users/admin/CLionProjects/Tanks/Bullet_img/bullet_right.png"
+    }
+  },
+  "ai_settings": {
+    "max_active": 10,
+    "spawn_interval_seconds": 5.0,
+    "// Default values if a specific type doesn't define them in ai_types below": "",
+    "default_base_health": 80,
+    "default_base_speed": 30.0,
+    "default_base_attack": 15,
+    "default_frame_width": 50,
+    "default_frame_height": 50,
+    "default_score_value": 100,
+
+    "// Definitions for specific AI Tank types": "",
+    "ai_types": {
+      "ai_default": {
+        "base_health": 80,
+        "base_speed": 30.0,
+        "base_attack": 15,
+        "frame_width": 50,
+        "frame_height": 50,
+        "score_value": 100,
+        "texture_key": "ai_default"
+      },
+      "ai_fast": {
+        "base_health": 50,
+        "base_speed": 60.0,
+        "base_attack": 10,
+        "frame_width": 50,
+        "frame_height": 50,
+        "score_value": 150,
+        "texture_key": "ai_fast"
+      },
+      "ai_tough": {
+        "base_health": 150,
+        "base_speed": 20.0,
+        "base_attack": 25,
+        "frame_width": 50,
+        "frame_height": 50,
+        "score_value": 200,
+        "texture_key": "ai_tough"
+      }
     }
   }
 }

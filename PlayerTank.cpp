@@ -45,7 +45,8 @@ PlayerTank::PlayerTank(sf::Vector2f startPosition,
                frameWidth,
                frameHeight,
                initialHealth,
-               initialArmor)
+               initialArmor,
+               0)
 {
     // 构造函数体
 

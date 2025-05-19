@@ -23,49 +23,48 @@ int AITank::getRandomValueInt(int base, float factor) {
 
 // 修改后的构造函数
 AITank::AITank(sf::Vector2f startPosition, Direction direction, const std::string& tankType, Game& game,
-               float baseSpeed, int baseHealth, int baseAttack,int frameW,int frameH) // ***接收基础属性***
+               float baseSpeed, int baseHealth, int baseAttack, int frameW, int frameH, int scoreValue) // ++ 接收 scoreValue ++
         : Tank(startPosition, direction, tankType, game,
-               1.0f, // 临时速度，会被下面随机化后的值覆盖
+               baseSpeed, // 直接使用传入的基础速度
                frameW,
                frameH,
-               1,    // 临时生命值，会被下面随机化后的值覆盖
-               0     /*armor, 默认AI坦克护甲为0*/) ,
+               baseHealth, // 直接使用传入的基础生命值
+               0,          // AI坦克默认护甲为0
+               scoreValue),// ++ 将 scoreValue 传递给 Tank 基类 ++
           m_isMovingToNextTile(false),
-          m_hasStrategicTarget(false),
-          m_aiShootTimer(sf::Time::Zero),
-        // m_rng 在基类 Tank 的某个地方或者这里如果还没有则需要初始化: m_rng(std::random_device{}())
-        // 从 AITank.h 移除 m_rng 的声明，因为它已经在 Tank.h 中有了 m_rng(std::random_device{}())
-        // 哦，AITank.h 中的 m_rng 是独立的，用于AI决策的，Tank中没有。所以 AITank 中 m_rng 初始化保留。
-          m_cooldownDistribution(0.8f, 2.5f),
-          m_baseSpeedForDebuff(1.0f), // 会被下面的随机速度覆盖
-          m_wasOriginalDistStored(false),
-          m_slowDebuffDuration(sf::Time::Zero),
-          m_isSlowDebuffActive(false)
+        // ... 其他 AITank 特有成员的初始化 ...
+          m_rng(std::random_device{}()), // 确保 m_rng 被初始化
+          m_cooldownDistribution(0.8f, 2.5f) // 这个也可以考虑从配置中读取或根据AI类型变化
 {
     // --- 属性随机化 ---
-    // 1. 生命值 (m_MaxHealth, m_health)
-    m_MaxHealth = std::max(10, getRandomValueInt(baseHealth, HEALTH_RANDOM_FACTOR)); // 保证 최소 10 HP
+    // 基类 Tank 的构造函数已经使用了传入的 baseHealth, baseSpeed, baseAttack (通过参数传递)
+    // 这里的随机化是在这些已设定的基础上进行的。
+
+    // 1. 生命值 (m_MaxHealth, m_health) - Tank 构造函数已处理 iniHealth
+    //    如果想在这里覆盖或进一步随机化，可以这样做：
+    m_MaxHealth = std::max(10, getRandomValueInt(Tank::getMaxHealth(), HEALTH_RANDOM_FACTOR)); // Tank::getMaxHealth() 获取的是构造时传入的 baseHealth
     m_health = m_MaxHealth;
 
-    // 2. 速度 (m_baseSpeed, m_speed)
-    // Tank 基类的构造函数已经接收了 speed 参数并设置了 m_baseSpeed 和 m_speed。
-    // 我们需要覆盖它。
-    float randomizedBaseSpeed = std::max(10.0f, getRandomValue(baseSpeed, SPEED_RANDOM_FACTOR)); // 保证 최소 10 速度
-    Tank::setSpeed(randomizedBaseSpeed); // 使用我们之前讨论过的 setSpeed 来正确设置 m_baseSpeed, m_originalSpeed, m_speed
-    m_baseSpeedForDebuff = randomizedBaseSpeed; // 更新用于debuff的基础速度记录
+    // 2. 速度 (m_baseSpeed, m_speed) - Tank 构造函数已处理 speed
+    //    如果想进一步随机化：
+    float randomizedBaseSpeed = std::max(10.0f, getRandomValue(Tank::getSpeed(), SPEED_RANDOM_FACTOR)); // Tank::getSpeed() 获取的是构造时传入的 baseSpeed
+    Tank::setSpeed(randomizedBaseSpeed);
+    m_baseSpeedForDebuff = randomizedBaseSpeed;
 
-    // 3. 攻击力 (m_baseAttackPower, m_currentAttackPower)
-    m_baseAttackPower = std::max(5, getRandomValueInt(baseAttack, ATTACK_RANDOM_FACTOR)); // 保证 최소 5 攻击力
+    // 3. 攻击力 (m_baseAttackPower, m_currentAttackPower) - Tank 构造函数并未直接接收 baseAttack, 需要在这里设置
+    //    Tank 基类有一个 m_baseAttackPower 和 m_currentAttackPower，但它的构造函数没有直接的 attack 参数。
+    //    你可能需要在 Tank 构造函数中添加 attack 参数，或者像 AITank 之前那样在这里直接设置。
+    //    假设 Tank 的 m_baseAttackPower 在其构造函数中被默认初始化或通过参数设置了。
+    //    如果 Tank 构造函数没有处理攻击力，那么这里：
+    m_baseAttackPower = std::max(5, getRandomValueInt(baseAttack, ATTACK_RANDOM_FACTOR)); // 使用传入的 baseAttack
     m_currentAttackPower = m_baseAttackPower;
 
-    // 确保 m_originalSpeed (在Tank类中) 也被正确设置，如果 setSpeed 没有处理它的话。
-    // Tank::setSpeed 的推荐实现是更新 m_baseSpeed 和 m_originalSpeed
-    // this->m_originalSpeed = this->m_baseSpeed; // 如果 Tank::setSpeed 没做这个
 
-    std::cout << "AITank (type '" << getTankType() << "') created with randomized stats. "
+    std::cout << "AITank (type '" << getTankType() << "') created. "
               << "HP: " << m_health << "/" << m_MaxHealth
-              << ", Speed: " << m_speed // 或者 m_baseSpeed，取决于 setSpeed 的具体实现
-              << ", Attack: " << m_currentAttackPower << std::endl;
+              << ", Speed: " << m_speed
+              << ", Attack: " << m_currentAttackPower
+              << ", Score: " << getScoreValue() << std::endl;
 
     generateNewRandomCooldown();
 }

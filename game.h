@@ -19,7 +19,16 @@
 // 包含AI坦克头文件
 #include "AITank.h"
 
-
+struct AITankTypeConfig {
+    std::string typeName; // 例如 "ai_default", "ai_fast"
+    std::string textureKey;
+    float baseSpeed;
+    int baseHealth;
+    int baseAttack;
+    int frameWidth;
+    int frameHeight;
+    int scoreValue;
+};
 // 前向声明 (Forward declarations)
 class PlayerTank;
 // class AITank; // AITank.h 已经被包含了
@@ -113,6 +122,7 @@ private:
     sf::Time m_aiTankSpawnInterval;     // AI坦克生成的时间间隔
     sf::Time m_aiTankSpawnTimer;        // AI坦克生成计时器
     int m_maxActiveAITanks;             // 屏幕上最大AI坦克数量
+
     std::string m_defaultAITankType;    // 默认生成的AI坦克类型 (从config加载)
     float m_defaultAITankSpeed;         // 默认生成的AI坦克速度
     int m_defaultAIBaseHealth; // Game 成员变量
@@ -121,7 +131,15 @@ private:
     void updateAITankSpawning(sf::Time dt); // 更新AI坦克生成计时器
     int m_defaultAIFrameWidth;
     int m_defaultAIFrameHeight;
-    void setGameOver();
+    int m_defaultAIScoreValue;
+
+    std::map<std::string ,AITankTypeConfig> m_aiTypeConfigs; // AI坦克类型配置表
+    std::vector<std::string >m_availableAITankTypeNames; // 可生成的AI坦克类型键名列表
+
+    void loadAITankConfigs(); // 加载AI坦克类型配置的方法
+
+
+
 };
 
 #endif //TANKS_GAME_H

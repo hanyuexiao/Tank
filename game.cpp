@@ -24,20 +24,23 @@ Game::Game(): window(sf::VideoMode(1500, 750), "Tank Battle!"),
               score(0),
               life(3),
               m_map(),
-              m_playerTankPtr(nullptr), // 确保初始化 PlayerTank 指针
-              m_toolSpawnInterval(sf::seconds(10.0f)), // 初始化道具生成间隔为10秒
-              m_toolSpawnTimer(sf::Time::Zero),        // 初始化道具生成计时器
-              m_aiTankSpawnInterval(sf::seconds(5.0f)),   // 初始化AI坦克生成间隔为5秒 (会被config覆盖)
-              m_aiTankSpawnTimer(sf::Time::Zero),         // 初始化AI坦克生成计时器
-              m_maxActiveAITanks(10),                     // 默认最大AI坦克数量 (会被config覆盖)
-              m_defaultAITankType("ai_default"),          // 默认AI类型 (会被config覆盖)
-              m_defaultAITankSpeed(30.f)   ,               // 默认AI速度 (会被config覆盖)
-              m_defaultAIBaseHealth(80), // Game 成员变量
-              m_defaultAIBaseAttack(15),
-              m_defaultAIFrameWidth(50),
-              m_defaultAIFrameHeight(50)
+              m_playerTankPtr(nullptr),
+              m_toolSpawnInterval(sf::seconds(10.0f)),
+              m_toolSpawnTimer(sf::Time::Zero),
+              m_aiTankSpawnInterval(sf::seconds(5.0f)), // 会被config覆盖
+              m_aiTankSpawnTimer(sf::Time::Zero),
+              m_maxActiveAITanks(10),                   // 会被config覆盖
+        // m_defaultAITankType("ai_default"),     // 可以考虑移除或保留为备用
+              m_defaultAITankSpeed(30.f),             // 硬编码的备用默认值
+              m_defaultAIBaseHealth(80),              // 硬编码的备用默认值
+              m_defaultAIBaseAttack(15),              // 硬编码的备用默认值
+              m_defaultAIFrameWidth(50),              // 硬编码的备用默认值
+              m_defaultAIFrameHeight(50),             // 硬编码的备用默认值
+              m_defaultAIScoreValue(100)              // ++ 硬编码的备用默认分值 ++
 {
     std::cout << "Game constructor called." << std::endl;
+    // 这些 m_defaultAI... 值稍后会在 loadConfig 或 loadAITankConfigs 中
+    // 尝试被 config.json 中的 "ai_settings" 下的全局默认值覆盖。
 }
 
 // Game 类的析构函数
@@ -215,21 +218,19 @@ void Game::init() {
         return;
     }
     loadToolTypesFromConfig(); // 加载可用道具类型
+    loadAITankConfigs();
 
     // 从配置中读取AI坦克生成参数
+    // 从配置中读取AI坦克全局生成参数 (max_active, spawn_interval_seconds)
     if (m_configJson.contains("ai_settings")) {
-        m_defaultAITankType = m_configJson["ai_settings"].value("default_type", m_defaultAITankType); // 使用构造函数中的值作为默认
-        m_defaultAITankSpeed = m_configJson["ai_settings"].value("default_speed", m_defaultAITankSpeed);
+        // m_defaultAITankType = m_configJson["ai_settings"].value("default_type", m_defaultAITankType); // 这个可能不再需要，因为类型是从 ai_types 随机选的
         m_maxActiveAITanks = m_configJson["ai_settings"].value("max_active", m_maxActiveAITanks);
         float spawnIntervalSeconds = m_configJson["ai_settings"].value("spawn_interval_seconds", m_aiTankSpawnInterval.asSeconds());
         m_aiTankSpawnInterval = sf::seconds(spawnIntervalSeconds);
-
-        std::cout << "AI Settings loaded from config: Type=" << m_defaultAITankType
-                  << ", Speed=" << m_defaultAITankSpeed
-                  << ", MaxActive=" << m_maxActiveAITanks
+        std::cout << "Global AI Settings loaded: MaxActive=" << m_maxActiveAITanks
                   << ", SpawnInterval=" << spawnIntervalSeconds << "s" << std::endl;
     } else {
-        std::cout << "AI Settings not found in config.json, using hardcoded defaults (from constructor)." << std::endl;
+        std::cout << "Global AI Settings (max_active, etc.) not found in config.json, using hardcoded defaults." << std::endl;
     }
 
     if(!m_map.load(*this)){ // 初始化并加载地图
@@ -464,7 +465,7 @@ void Game::updateTools(sf::Time dt) {
     // 2. 更新所有活动道具 (如果它们有自己的 update 逻辑)
     for (auto& tool : m_tools) {
         if (tool && tool->isActive()) {
-            tool->updata(dt); // 确保 Tools 类及其派生类有 update 方法 (之前可能是 updata)
+            tool->update(dt); // 确保 Tools 类及其派生类有 update 方法 (之前可能是 update)
         }
     }
 
@@ -494,22 +495,32 @@ void Game::updateTools(sf::Time dt) {
 
 // --- AI坦克生成方法 ---
 void Game::spawnNewAITank() {
-    // 1. 统计当前活跃AI坦克的数量
-    int currentAICount = 0;
-    for (const auto& tank_ptr : m_all_tanks) {
-        if (tank_ptr) {
-            AITank* ai = dynamic_cast<AITank*>(tank_ptr.get());
-            if (ai && !ai->isDestroyed()) {
-                currentAICount++;
-            }
-        }
-    }
-
-    // 2. 如果达到最大活跃AI坦克数，则不生成新的
+    // 1. 统计当前活跃AI坦克的数量 (逻辑不变)
+    int currentAICount = 0; /* ... */
     if (currentAICount >= m_maxActiveAITanks) {
         return;
     }
 
+    // ++ 新增: 如果没有可用的AI类型定义，则不生成 ++
+    if (m_availableAITankTypeNames.empty()) {
+        std::cerr << "spawnNewAITank: No AI types loaded from config. Cannot spawn AI." << std::endl;
+        return;
+    }
+
+    // ++ 新增: 随机选择一个AI类型进行生成 ++
+    std::random_device rd_type;
+    std::mt19937 gen_type(rd_type());
+    std::uniform_int_distribution<> distrib_type_idx(0, m_availableAITankTypeNames.size() - 1);
+    std::string selectedTypeName = m_availableAITankTypeNames[distrib_type_idx(gen_type)];
+
+    const AITankTypeConfig* selectedConfig = nullptr;
+    auto configIt = m_aiTypeConfigs.find(selectedTypeName);
+    if (configIt != m_aiTypeConfigs.end()) {
+        selectedConfig = &configIt->second;
+    } else {
+        std::cerr << "spawnNewAITank: Could not find config for selected AI type '" << selectedTypeName << "'. Aborting spawn." << std::endl;
+        return; // 无法找到配置，则不生成
+    }
     // 3. 确定新AI坦克的出生位置
     sf::Vector2f spawnPosition;
     bool positionFound = false;
@@ -572,22 +583,19 @@ void Game::spawnNewAITank() {
     std::uniform_int_distribution<> distribDir(0, 3);
     Direction startDir = static_cast<Direction>(distribDir(gen));
 
-    // 5. 创建新的AI坦克实例，使用 Game 类中硬编码的默认基础属性
-    // AITank 的构造函数会负责在这些基础上进行随机化
-
+    // 5. 创建新的AI坦克实例，使用选定类型的配置
+    std::cout << "Attempting to spawn AI of type: " << selectedConfig->typeName << std::endl;
     auto newAITank = std::make_unique<AITank>(
             spawnPosition,
             startDir,
-            m_defaultAITankType,    // Game 成员变量
+            selectedConfig->typeName,    // 传递类型名 (e.g., "ai_fast")
             *this,
-            m_defaultAITankSpeed,   // Game 成员变量
-            m_defaultAIBaseHealth,  // Game 成员变量
-            m_defaultAIBaseAttack,   // Game 成员变量
-            m_defaultAIFrameWidth,   // Game 成员变量
-            m_defaultAIFrameHeight  // Game 成员变量
-            // 如果 AITank 构造函数需要 frameWidth/Height，你需要确保 Game 类也有对应的
-            // m_defaultAIFrameWidth 和 m_defaultAIFrameHeight 成员并在这里传递
-            // 例如: m_defaultAIFrameWidth, m_defaultAIFrameHeight
+            selectedConfig->baseSpeed,
+            selectedConfig->baseHealth,
+            selectedConfig->baseAttack,
+            selectedConfig->frameWidth,
+            selectedConfig->frameHeight,
+            selectedConfig->scoreValue   // ++ 传递分值 ++
     );
 
     AITank* aiPtr = newAITank.get();
@@ -720,12 +728,17 @@ void Game::update(sf::Time dt) {
     updateAITankSpawning(dt);
 
     // 6. 清理不再存活的实体
-
-    //    a. 清理被摧毁的坦克
+    // a. 清理被摧毁的坦克
     m_all_tanks.erase(std::remove_if(m_all_tanks.begin(), m_all_tanks.end(),
                                      [&](const std::unique_ptr<Tank>& tank_to_check) {
                                          bool should_remove = tank_to_check && tank_to_check->isDestroyed();
                                          if (should_remove) {
+                                             // ++ 新增: 如果被摧毁的是AI坦克，增加分数 ++
+                                             if (dynamic_cast<AITank*>(tank_to_check.get())) {
+                                                 score += tank_to_check->getScoreValue(); // Tank 基类有 getScoreValue()
+                                                 std::cout << "AI Tank destroyed! Player Score: " << score << std::endl;
+                                             }
+                                             // 玩家坦克被摧毁的逻辑
                                              if (m_playerTankPtr == tank_to_check.get()) {
                                                  // m_playerTankPtr 会在下面被置空
                                              }
@@ -915,5 +928,43 @@ Bullet* Game::getAvailableBullet() {
     m_bulletPool.push_back(std::move(new_bullet));
     std::cout << "New bullet added to pool. Pool size: " << m_bulletPool.size() << std::endl;
     return raw_ptr;
+}
+
+void Game::loadAITankConfigs() {
+    m_aiTypeConfigs.clear();
+    m_availableAITankTypeNames.clear();
+
+    if (m_configJson.contains("ai_settings") && m_configJson["ai_settings"].contains("ai_types")) {
+        const auto& aiTypesNode = m_configJson["ai_settings"]["ai_types"];
+        for (auto it = aiTypesNode.begin(); it != aiTypesNode.end(); ++it) {
+            const std::string& typeName = it.key();
+            const auto& configNode = it.value();
+
+            try {
+                AITankTypeConfig config;
+                config.typeName = typeName;
+                // 从 "ai_settings" 读取全局默认值，如果特定类型没有定义
+                config.baseHealth = configNode.value("base_health", m_configJson["ai_settings"].value("default_base_health", 100));
+                config.baseSpeed = configNode.value("base_speed", m_configJson["ai_settings"].value("default_base_speed", 30.0f));
+                config.baseAttack = configNode.value("base_attack", m_configJson["ai_settings"].value("default_base_attack", 15));
+                config.frameWidth = configNode.value("frame_width", m_configJson["ai_settings"].value("default_frame_width", 50));
+                config.frameHeight = configNode.value("frame_height", m_configJson["ai_settings"].value("default_frame_height", 50));
+                config.scoreValue = configNode.value("score_value", m_configJson["ai_settings"].value("default_score_value", 100));
+                config.textureKey = configNode.value("texture_key", typeName); // 默认纹理键名与类型名一致
+
+                m_aiTypeConfigs[typeName] = config;
+                m_availableAITankTypeNames.push_back(typeName);
+                std::cout << "Loaded AI Tank Config: " << typeName << " (HP:" << config.baseHealth << ", Speed:" << config.baseSpeed << ", Score:" << config.scoreValue << ")" << std::endl;
+            } catch (const nlohmann::json::exception& e) {
+                std::cerr << "Error parsing AI type config for '" << typeName << "': " << e.what() << std::endl;
+            }
+        }
+    } else {
+        std::cerr << "Warning: 'ai_settings.ai_types' not found in config.json. No specific AI types loaded." << std::endl;
+        // 可以选择加载一个硬编码的默认类型，或者让游戏无法生成AI
+    }
+    if (m_availableAITankTypeNames.empty()) {
+        std::cerr << "CRITICAL: No AI tank types available to spawn!" << std::endl;
+    }
 }
 

@@ -44,6 +44,7 @@ protected:
     bool m_isAttackBuffActive;
 
     bool m_isAttackSpeedBuffActive;
+    int m_scoreValue;
 
     // 生命状态
     int m_health;                        // 坦克当前的生命值
@@ -60,7 +61,7 @@ public:
     // 参数: startPosition - 初始位置, direction - 初始方向, speed - 移动速度,
     //       frameWidth - 帧宽, frameHeight - 帧高, health - 初始生命值, max_health - 最大生命值
     Tank(sf::Vector2f startPosition, Direction startDirection, const std::string& tankType, Game& game,
-               float speed, int frameWidth, int frameHeight, int iniHealth, int armor);
+               float speed, int frameWidth, int frameHeight, int iniHealth, int armor,int scoreValue);
     virtual ~Tank() = default;           // 虚析构函数，确保派生类的析构函数被正确调用
 
     // 核心功能方法
@@ -106,6 +107,8 @@ public:
      void activateMovementSpeedBuff(float increaseAmount,sf::Time duration);
 
      const std::string& getTankType() const { return m_tankType; }
+
+     int getScoreValue() const { return m_scoreValue; }
 };
 
 #endif // TANK_H

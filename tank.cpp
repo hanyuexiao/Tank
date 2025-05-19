@@ -7,7 +7,7 @@
 const int Tank::MAX_ARMOR;
 // MODIFIED Constructor
 Tank::Tank(sf::Vector2f startPosition, Direction startDirection, const std::string& tankType, Game& game,
-           float speed, int frameWidth, int frameHeight, int iniHealth, int armor) :
+           float speed, int frameWidth, int frameHeight, int iniHealth, int armor,int scoreValue = 0) :
         m_position(startPosition),
         m_direction(startDirection),
         m_tankType(tankType), // Store the tank type
@@ -33,7 +33,8 @@ Tank::Tank(sf::Vector2f startPosition, Direction startDirection, const std::stri
         m_isMovementSpeedBuffActive(false),
         m_movementSpeedBuffDuration(sf::Time::Zero),
         m_originalSpeed(speed),
-        m_isInForest(false)
+        m_isInForest(false),
+        m_scoreValue(scoreValue)
 {
     // Textures are no longer loaded by a Tank::loadTextures() method.
     // Instead, we fetch the initial texture from the Game object.

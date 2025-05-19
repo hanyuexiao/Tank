@@ -27,7 +27,8 @@ public:
            int baseHealth,              // ***传入基础生命值***
            int baseAttack,           // ***传入基础攻击力***
            int frameW,
-           int frameH
+           int frameH,
+           int scoreValue
             /*, 其他参数如 frameWidth, frameHeight 如果也想区分或默认 */
     );
 

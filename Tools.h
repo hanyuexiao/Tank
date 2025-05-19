@@ -11,13 +11,14 @@ class Game;
 
 class Tools {
     public:
+        Tools(sf::Vector2f position, const sf::Texture& texture, sf::Time lifetime);
         Tools(sf::Vector2f position, const sf::Texture& texture);
         virtual ~Tools() = default;
         sf::FloatRect getBound() const;
 
         virtual void applyEffect(Tank& tank,Game& gameContext) = 0;
 
-        virtual void updata(sf::Time dt);
+        virtual void update(sf::Time dt);
 
         void draw(sf::RenderWindow& window);
 
@@ -35,7 +36,9 @@ protected:
         bool m_isActive;
 
         sf::Texture m_Texture;//假设构造时传入纹理
-
+    //道具生命周期相关
+        sf::Time m_lifetime;       // 道具的总生命周期
+        sf::Time m_age;            // 道具已经存在的时间
     sf::FloatRect getGlobalBounds();
 };
 
