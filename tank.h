@@ -7,6 +7,7 @@
 #include <string>       // 使用 std::string (虽然这里没直接用，但常见)
 #include "common.h"     // 包含通用定义，例如 Direction 枚举
 
+#define FOREST_SLOWDOWN_FACTOR 0.7;
 // 前向声明，避免头文件循环依赖
 class Bullet;           // 子弹类，Tank 可以发射子弹
 class Game;             // 游戏主类，Tank 可能需要与 Game 对象交互 (例如发射子弹时)
@@ -29,6 +30,9 @@ protected:
     sf::Time m_movementSpeedBuffDuration;
     bool m_isMovementSpeedBuffActive;
     std::string m_tankType;           // 坦克类型，例如 "player", "enemy", "boss" 等
+    int m_originalSpeed;
+    bool m_isInForest;
+    float m_movementSpeedBuffIncrease;
     // 射击相关
     sf::Time m_baseShootCooldown;
     sf::Time m_attackSpeedBuffDuration;
@@ -48,6 +52,9 @@ protected:
     int m_armor;
     static const int MAX_ARMOR = 1;
 
+
+
+
 public:
     // 构造函数与析构函数
     // 参数: startPosition - 初始位置, direction - 初始方向, speed - 移动速度,
@@ -61,8 +68,7 @@ public:
     virtual void update(sf::Time dt, Game& game);    // 更新坦克状态 (例如动画、射击冷却计时器等)，dt 是帧间隔时间
     void setDirection(Direction dir, Game& game);   // 设置坦克的新方向，并更新纹理
     void move(sf::Vector2f targetPosition, const Map& map); //尝试将坦克移动到目标位置，会进行地图碰撞检测
-    std::unique_ptr<Bullet> shoot(Game& gameInstance); // 创建并发射一颗子弹，返回子弹对象的智能指针
-
+    void shoot(Game& gameInstance);  // 创建并发射一颗子弹，返回子弹对象的智能指针
     // --- Getter 方法 ---
     // 获取坦克当前的位置 (const 版本，确保不修改成员)
     sf::Vector2f get_position() const { return m_position; }

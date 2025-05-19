@@ -31,7 +31,11 @@ Game::Game(): window(sf::VideoMode(1500, 750), "Tank Battle!"),
               m_aiTankSpawnTimer(sf::Time::Zero),         // 初始化AI坦克生成计时器
               m_maxActiveAITanks(10),                     // 默认最大AI坦克数量 (会被config覆盖)
               m_defaultAITankType("ai_default"),          // 默认AI类型 (会被config覆盖)
-              m_defaultAITankSpeed(30.f)                  // 默认AI速度 (会被config覆盖)
+              m_defaultAITankSpeed(30.f)   ,               // 默认AI速度 (会被config覆盖)
+              m_defaultAIBaseHealth(80), // Game 成员变量
+              m_defaultAIBaseAttack(15),
+              m_defaultAIFrameWidth(50),
+              m_defaultAIFrameHeight(50)
 {
     std::cout << "Game constructor called." << std::endl;
 }
@@ -228,7 +232,6 @@ void Game::init() {
         std::cout << "AI Settings not found in config.json, using hardcoded defaults (from constructor)." << std::endl;
     }
 
-
     if(!m_map.load(*this)){ // 初始化并加载地图
         std::cerr << "CRITICAL ERROR: Failed to load map in Game::init()" << std::endl;
         window.close();
@@ -268,6 +271,7 @@ void Game::init() {
 
     m_toolSpawnTimer = sf::Time::Zero; // 重置道具生成计时器
     m_aiTankSpawnTimer = sf::Time::Zero; // 重置AI坦克生成计时器
+    initializeBulletPool();
 }
 
 // 将新创建的子弹添加到游戏世界中
@@ -292,62 +296,43 @@ void Game::run() {
 void Game::Handling_events(sf::Time deltaTime) {
     sf::Event event{}; // 用于存储事件
     while (window.pollEvent(event)) { // 轮询所有未处理的事件
-        if(event.type == sf::Event::Closed){ // 如果是关闭窗口事件
+        if (event.type == sf::Event::Closed) { // 如果是关闭窗口事件
             window.close(); // 关闭窗口
         }
-        if( event.type == sf::Event::KeyPressed){ // 如果是键盘按下事件
-            if(event.key.code == sf::Keyboard::Space){ // 如果按下的是空格键
-                std::cout << "Spacebar pressed." << std::endl; // 调试日志
-                if (m_playerTankPtr) { // 确保玩家坦克指针有效
-                    // 打印射击条件检查的详细日志
-                    std::cout << "PlayerTank exists. IsDestroyed: " << m_playerTankPtr->isDestroyed()
-                              << ", CanShoot: " << m_playerTankPtr->canShoot() << std::endl;
-                    if (!m_playerTankPtr->isDestroyed() && m_playerTankPtr->canShoot()){ // 玩家坦克存在、未被摧毁且可以射击
-                        std::cout << "Attempting to shoot..." << std::endl;
-                        std::unique_ptr<Bullet> new_Bullet = m_playerTankPtr->shoot(*this); // 玩家坦克射击
-                        if(new_Bullet){
-                            addBullet(std::move(new_Bullet)); // 添加子弹到游戏世界
-                            std::cout << "Player bullet CREATED and added to game." << std::endl;
-                        } else {
-                            std::cout << "Player bullet was NOT created by shoot() method (e.g. texture issue, or shoot returned null)." << std::endl;
-                        }
+        if (event.type == sf::Event::KeyPressed) { // 如果是键盘按下事件
+            if (event.key.code == sf::Keyboard::Space) { // 如果按下的是空格键
+                    if (!m_playerTankPtr->isDestroyed() && m_playerTankPtr->canShoot()) { // 玩家坦克存在、未被摧毁且可以射击
+                        m_playerTankPtr->shoot(*this);
                     }
-                } else {
-                    std::cout << "m_playerTankPtr is NULL when trying to shoot." << std::endl;
-                }
+            }
+        }
+        // 处理玩家坦克的持续按键移动
+        if (m_playerTankPtr && !m_playerTankPtr->isDestroyed()) {
+            float distance = m_playerTankPtr->getSpeed() * deltaTime.asSeconds();
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::A) || sf::Keyboard::isKeyPressed(sf::Keyboard::Left)) {
+                sf::Vector2f targetLocation = m_playerTankPtr->get_position() + sf::Vector2f(-distance, 0.f);
+                m_playerTankPtr->setDirection(Direction::LEFT, *this);
+                m_playerTankPtr->move(targetLocation, m_map);
+            } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::D) ||
+            sf::Keyboard::isKeyPressed(sf::Keyboard::Right)) {
+                sf::Vector2f targetLocation = m_playerTankPtr->get_position() + sf::Vector2f(distance, 0.f);
+                m_playerTankPtr->setDirection(Direction::RIGHT, *this);
+                m_playerTankPtr->move(targetLocation, m_map);
+            } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::W) ||
+            sf::Keyboard::isKeyPressed(sf::Keyboard::Up)) {
+                sf::Vector2f targetLocation = m_playerTankPtr->get_position() + sf::Vector2f(0.f, -distance);
+                m_playerTankPtr->setDirection(Direction::UP, *this);
+                m_playerTankPtr->move(targetLocation, m_map);
+            } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::S) ||
+            sf::Keyboard::isKeyPressed(sf::Keyboard::Down)) {
+                sf::Vector2f targetLocation = m_playerTankPtr->get_position() + sf::Vector2f(0.f, distance);
+                m_playerTankPtr->setDirection(Direction::DOWN, *this);
+                m_playerTankPtr->move(targetLocation, m_map);
             }
         }
     }
-
-    // 处理玩家坦克的持续按键移动
-    if(m_playerTankPtr && !m_playerTankPtr->isDestroyed()){
-        float distance = m_playerTankPtr->getSpeed() * deltaTime.asSeconds();
-        if(sf::Keyboard::isKeyPressed(sf::Keyboard::A) || sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
-        {
-            sf::Vector2f targetLocation = m_playerTankPtr->get_position() + sf::Vector2f(-distance, 0.f);
-            m_playerTankPtr->setDirection(Direction::LEFT, *this);
-            m_playerTankPtr->move(targetLocation, m_map);
-        }
-        else if(sf::Keyboard::isKeyPressed(sf::Keyboard::D) || sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
-        {
-            sf::Vector2f targetLocation = m_playerTankPtr->get_position() + sf::Vector2f(distance, 0.f);
-            m_playerTankPtr->setDirection(Direction::RIGHT, *this);
-            m_playerTankPtr->move(targetLocation, m_map);
-        }
-        else if(sf::Keyboard::isKeyPressed(sf::Keyboard::W) || sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
-        {
-            sf::Vector2f targetLocation = m_playerTankPtr->get_position() + sf::Vector2f(0.f, -distance);
-            m_playerTankPtr->setDirection(Direction::UP, *this);
-            m_playerTankPtr->move(targetLocation, m_map);
-        }
-        else if(sf::Keyboard::isKeyPressed(sf::Keyboard::S) || sf::Keyboard::isKeyPressed(sf::Keyboard::Down))
-        {
-            sf::Vector2f targetLocation = m_playerTankPtr->get_position() + sf::Vector2f(0.f, distance);
-            m_playerTankPtr->setDirection(Direction::DOWN, *this);
-            m_playerTankPtr->move(targetLocation, m_map);
-        }
-    }
 }
+
 
 // 游戏结束时的清理工作 (如果需要)
 void Game::end() {
@@ -509,62 +494,61 @@ void Game::updateTools(sf::Time dt) {
 
 // --- AI坦克生成方法 ---
 void Game::spawnNewAITank() {
-    // 统计当前AI坦克数量
+    // 1. 统计当前活跃AI坦克的数量
     int currentAICount = 0;
-    for (const auto& tank : m_all_tanks) {
-        if (dynamic_cast<AITank*>(tank.get())) { // 检查是否为AITank类型
-            currentAICount++;
+    for (const auto& tank_ptr : m_all_tanks) {
+        if (tank_ptr) {
+            AITank* ai = dynamic_cast<AITank*>(tank_ptr.get());
+            if (ai && !ai->isDestroyed()) {
+                currentAICount++;
+            }
         }
     }
 
+    // 2. 如果达到最大活跃AI坦克数，则不生成新的
     if (currentAICount >= m_maxActiveAITanks) {
-        // std::cout << "Maximum number of AI tanks reached (" << currentAICount << "/" << m_maxActiveAITanks << "). Skipping AI spawn." << std::endl;
         return;
     }
 
+    // 3. 确定新AI坦克的出生位置
     sf::Vector2f spawnPosition;
     bool positionFound = false;
-    int maxAttempts = 50; // 尝试寻找出生点的最大次数
+    int maxAttempts = 50;
     int tileW = m_map.getTileWidth();
     int tileH = m_map.getTileHeight();
 
     if (tileW <= 0 || tileH <= 0) {
-        std::cerr << "spawnNewAITank Error: Invalid tile dimensions from map." << std::endl;
+        std::cerr << "spawnNewAITank Error: Invalid tile dimensions from map. Cannot determine spawn position." << std::endl;
         return;
     }
 
-    // 定义地图上半部分的可部署区域 (例如：Y轴从第1行到地图高度的一半，X轴避开边界)
-    int minYTile = 1; // 从第1行开始 (避开顶部边界墙)
-    int maxYTile = m_map.getMapHeight() / 2; // 到地图高度的一半
-    if (maxYTile <= minYTile) maxYTile = minYTile + 1; // 确保至少有一行可选
-    if (maxYTile >= m_map.getMapHeight() -1 ) maxYTile = m_map.getMapHeight() -2; // 避免太靠近底部边界
-
+    int minYTile = 1;
+    int maxYTile = m_map.getMapHeight() / 2;
+    if (maxYTile <= minYTile) maxYTile = minYTile + 1;
+    if (maxYTile >= m_map.getMapHeight() -1 ) maxYTile = m_map.getMapHeight() -2;
 
     std::random_device rd;
     std::mt19937 gen(rd());
 
     for (int attempt = 0; attempt < maxAttempts; ++attempt) {
-        std::uniform_int_distribution<> distribX(1, m_map.getMapWidth() - 2); // X轴避开左右边界
-        std::uniform_int_distribution<> distribY(minYTile, maxYTile);        // Y轴在指定上半区域
+        std::uniform_int_distribution<> distribX(1, m_map.getMapWidth() - 2);
+        std::uniform_int_distribution<> distribY(minYTile, maxYTile);
         int tileX = distribX(gen);
         int tileY = distribY(gen);
 
         if (m_map.isTileWalkable(tileX, tileY)) {
-            // 检查该位置是否会与其他坦克重叠 (简单检查瓦片中心是否已有坦克)
             sf::Vector2f prospectiveCenter(
                     static_cast<float>(tileX * tileW) + tileW / 2.0f,
                     static_cast<float>(tileY * tileH) + tileH / 2.0f
             );
             bool tankAlreadyThere = false;
-            // 设定一个最小距离，避免坦克生成时过于靠近或重叠
-            // 可以根据坦克尺寸调整这个距离，例如坦克宽度的一半或一个瓦片的宽度
-            float minDistanceSq = static_cast<float>((tileW * 0.8f) * (tileW * 0.8f)); // 稍微减小判定距离，避免过于稀疏
+            float minDistanceSq = static_cast<float>((tileW * 0.8f) * (tileW * 0.8f));
 
             for (const auto& existingTank : m_all_tanks) {
-                if (existingTank) {
+                if (existingTank && !existingTank->isDestroyed()) {
                     sf::Vector2f diff = existingTank->get_position() - prospectiveCenter;
                     float distSq = diff.x * diff.x + diff.y * diff.y;
-                    if (distSq < minDistanceSq) { // 如果距离太近
+                    if (distSq < minDistanceSq) {
                         tankAlreadyThere = true;
                         break;
                     }
@@ -572,7 +556,7 @@ void Game::spawnNewAITank() {
             }
 
             if (!tankAlreadyThere) {
-                spawnPosition = prospectiveCenter; // 使用瓦片中心作为生成点
+                spawnPosition = prospectiveCenter;
                 positionFound = true;
                 break;
             }
@@ -584,26 +568,44 @@ void Game::spawnNewAITank() {
         return;
     }
 
-    // 随机选择一个初始方向
-    std::uniform_int_distribution<> distribDir(0, 3); // 0:LEFT, 1:RIGHT, 2:UP, 3:DOWN
+    // 4. 随机选择一个初始方向
+    std::uniform_int_distribution<> distribDir(0, 3);
     Direction startDir = static_cast<Direction>(distribDir(gen));
 
-    // 创建新的AI坦克实例
-    auto newAITank = std::make_unique<AITank>(spawnPosition, startDir, m_defaultAITankType, *this, m_defaultAITankSpeed);
-    AITank* aiPtr = newAITank.get(); // 获取原始指针以便设置目标
+    // 5. 创建新的AI坦克实例，使用 Game 类中硬编码的默认基础属性
+    // AITank 的构造函数会负责在这些基础上进行随机化
 
+    auto newAITank = std::make_unique<AITank>(
+            spawnPosition,
+            startDir,
+            m_defaultAITankType,    // Game 成员变量
+            *this,
+            m_defaultAITankSpeed,   // Game 成员变量
+            m_defaultAIBaseHealth,  // Game 成员变量
+            m_defaultAIBaseAttack,   // Game 成员变量
+            m_defaultAIFrameWidth,   // Game 成员变量
+            m_defaultAIFrameHeight  // Game 成员变量
+            // 如果 AITank 构造函数需要 frameWidth/Height，你需要确保 Game 类也有对应的
+            // m_defaultAIFrameWidth 和 m_defaultAIFrameHeight 成员并在这里传递
+            // 例如: m_defaultAIFrameWidth, m_defaultAIFrameHeight
+    );
+
+    AITank* aiPtr = newAITank.get();
     m_all_tanks.push_back(std::move(newAITank));
-    std::cout << "Spawned new AI Tank (type: " << m_defaultAITankType << ") at (" << spawnPosition.x << ", " << spawnPosition.y << ")" << std::endl;
 
-    // 为新生成的AI坦克设置目标 (例如，玩家基地)
+    // 6. 为新生成的AI坦克设置战略目标
     if (aiPtr) {
         sf::Vector2i baseTile = m_map.getBaseTileCoordinate();
         if (baseTile.x != -1 && baseTile.y != -1) {
             aiPtr->setStrategicTargetTile(baseTile);
-            std::cout << "  New AI Tank target set to base (" << baseTile.x << ", " << baseTile.y << ")" << std::endl;
+            // AITank的构造函数应该会打印随机化后的实际属性
+            // std::cout << "  New AI Tank (actual stats after randomization - Type: " << aiPtr->getTankType()
+            //           << ") target set to base (" << baseTile.x << ", " << baseTile.y << ")" << std::endl;
         } else {
             std::cerr << "  Could not set target for new AI tank: Base tile not found." << std::endl;
         }
+    } else {
+        std::cerr << "Failed to create new AITank instance." << std::endl;
     }
 }
 
@@ -636,15 +638,12 @@ void Game::update(sf::Time dt) {
                 aiTankPtr->updateMovementBetweenTiles(dt, m_map); // 更新AI的格子间平滑移动
 
                 if (aiTankPtr->canShootAI()) { // 检查AI是否可以射击 (基于其特定冷却)
-                    std::unique_ptr<Bullet> newBullet = aiTankPtr->shoot(*this); // AI射击
-                    if (newBullet) {
-                        addBullet(std::move(newBullet));
-                        aiTankPtr->resetShootTimerAI(); // 重置AI的射击计时器
+                    aiTankPtr->shoot(*this); // AI射击
+                    aiTankPtr->resetShootTimerAI(); // 重置AI的射击计时器
                     }
                 }
             }
         }
-    }
 
     // 3. 处理坦克间的碰撞
     for (size_t i = 0; i < m_all_tanks.size(); ++i) {
@@ -658,69 +657,51 @@ void Game::update(sf::Time dt) {
         }
     }
 
-    // 4. 更新所有子弹的状态 (移动)
-    for (auto& bullet : m_bullets) {
-        if (bullet && bullet->isAlive()) {
-            bullet->update(dt);
+    // 4. 更新所有子弹的状态 (移动) - 只更新活跃的
+    for (auto& bullet_ptr : m_bulletPool) { // 遍历整个池
+        if (bullet_ptr && bullet_ptr->isAlive()) { // 只更新活跃的
+            bullet_ptr->update(dt);
         }
     }
 
-    // 5. 处理碰撞逻辑
-    //    a. 子弹与坦克的碰撞
-    for (auto& bullet : m_bullets) {
-        if (bullet && bullet->isAlive()) { // 只处理存活的子弹
+// 5. 处理碰撞逻辑
+//    a. 子弹与坦克的碰撞 - 只处理活跃的
+    for (auto& bullet_ptr : m_bulletPool) {
+        if (bullet_ptr && bullet_ptr->isAlive()) { // 只检查活跃的子弹
             for (auto& tankPtr : m_all_tanks) {
-                if (tankPtr && !tankPtr->isDestroyed()) { // 只与存活的坦克碰撞
-                    // 简单的自伤避免：如果子弹刚从坦克附近发射，可能暂时不检测碰撞
-                    // 这需要Bullet能知道其发射者，或者基于距离和时间的启发式判断
-                    // 例如： if (bullet->getOwner() == tankPtr.get() && bullet->getLifetime() < sf::milliseconds(100)) continue;
-                    AITank* ai = dynamic_cast<AITank*>(tankPtr.get());
-                    if(ai){
-                        sf::FloatRect bounds = tankPtr->getBounds();
-                        std::cout << "AI Tank (type: " << ai->getTankType() << ") bounds: " << bounds.left << ", " << bounds.top << ", " << bounds.width << ", " << bounds.height << std::endl;
-                    }
-                    if (bullet->getBounds().intersects(tankPtr->getBounds())) {
-                        // 进一步检查，避免子弹刚发射就和发射者碰撞
-                        // 假设Bullet类有一个getOwnerType()方法，并且Tank类有一个getTankType()方法
-                        // 并且Tank::shoot()在创建子弹时设置了ownerType
-                        bool potential_self_hit = false;
-//                        if (bullet->getOwnerType() == tankPtr->getTankType()) { // 假设有getOwnerType
-                            // 检查距离是否非常近，表明可能是刚发射
-                            sf::Vector2f dist_vec = bullet->getPosition() - tankPtr->get_position();
-                            float tank_radius_approx = (tankPtr->get_TileWight() + tankPtr->get_TileHeight()) / 4.0f; // 坦克大致半径
-                            if (std::sqrt(dist_vec.x*dist_vec.x + dist_vec.y*dist_vec.y) < tank_radius_approx * 1.5f) { // 如果子弹还在坦克1.5倍半径内
-                                // std::cout << "Potential self-hit avoided for " << tankPtr->getTankType() << std::endl;
-                                potential_self_hit = true;
-                            }
-//                        }
-
-                        if (!potential_self_hit) {
-                            tankPtr->takeDamage(bullet->getDamage()); // 坦克受损
-                            bullet->setIsAlive(false);                // 子弹失效
-                            // std::cout << "Bullet (owner: " << bullet->getOwnerType() << ") hit Tank (type '" << tankPtr->getTankType() << "')." << std::endl;
-                            break; //一颗子弹通常只击中一个目标
-                        }
+                // ... (碰撞逻辑不变, 但确保 tankPtr 也有效且未摧毁) ...
+                if (tankPtr && !tankPtr->isDestroyed()) {
+                    if (bullet_ptr->getBounds().intersects(tankPtr->getBounds())) {
+                        // ... (自伤避免逻辑) ...
+                        // if (!potential_self_hit) { // 假设这个逻辑存在
+                        tankPtr->takeDamage(bullet_ptr->getDamage());
+                        bullet_ptr->setIsAlive(false); // 子弹失效，返回池中（逻辑上）
+                        break;
+                        // }
                     }
                 }
             }
         }
     }
-    //    b. 子弹与地图的碰撞
-    for (auto& bullet : m_bullets) {
-        if (bullet && bullet->isAlive()) {
-            sf::Vector2f bulletPos = bullet->getPosition();
+//    b. 子弹与地图的碰撞 - 只处理活跃的
+    for (auto& bullet_ptr : m_bulletPool) {
+        if (bullet_ptr && bullet_ptr->isAlive()) { // 只检查活跃的子弹
+            // ... (与地图的碰撞逻辑不变，击中后 bullet_ptr->setIsAlive(false);)
+            sf::Vector2f bulletPos = bullet_ptr->getPosition();
             int tileX = static_cast<int>(bulletPos.x / m_map.getTileWidth());
             int tileY = static_cast<int>(bulletPos.y / m_map.getTileHeight());
 
-            if (tileX >= 0 && tileX < m_map.getMapWidth() && tileY >= 0 && tileY < m_map.getMapHeight()) { // 确保在地图边界内
-                if (!m_map.isTileWalkable(tileX, tileY)) { // 如果子弹击中不可通行的瓦片
-                    bullet->setIsAlive(false); // 子弹失效
+            if (tileX >= 0 && tileX < m_map.getMapWidth() && tileY >= 0 && tileY < m_map.getMapHeight()) {
+                int tileTypeHit = m_map.getTileType(tileX, tileY);
+                if (tileTypeHit == 1 || tileTypeHit == 2 || tileTypeHit == 3) { // 砖墙, 钢墙, 基地
+                    bullet_ptr->setIsAlive(false);
                 }
-            } else { // 子弹飞出地图边界
-                bullet->setIsAlive(false);
+            } else {
+                bullet_ptr->setIsAlive(false); // 飞出边界
             }
         }
     }
+
 
     // 更新道具逻辑
     updateTools(dt);
@@ -729,14 +710,8 @@ void Game::update(sf::Time dt) {
     updateAITankSpawning(dt);
 
     // 6. 清理不再存活的实体
-    //    a. 清理子弹
-    m_bullets.erase(std::remove_if(m_bullets.begin(), m_bullets.end(),
-                                   [](const std::unique_ptr<Bullet>& b) {
-                                       return !b || !b->isAlive(); // 移除空指针或不存活的子弹
-                                   }),
-                    m_bullets.end());
 
-    //    b. 清理被摧毁的坦克
+    //    a. 清理被摧毁的坦克
     m_all_tanks.erase(std::remove_if(m_all_tanks.begin(), m_all_tanks.end(),
                                      [&](const std::unique_ptr<Tank>& tank_to_check) {
                                          bool should_remove = tank_to_check && tank_to_check->isDestroyed();
@@ -793,9 +768,9 @@ void Game::render() {
     }
 
     // 绘制所有子弹
-    for (const auto &bullet: m_bullets) {
-        if (bullet && bullet->isAlive()) { // 只绘制存活的子弹
-            bullet->draw(window);
+    for (const auto &bullet_ptr: m_bulletPool) { // 遍历整个池
+        if (bullet_ptr && bullet_ptr->isAlive()) { // 只绘制活跃的
+            bullet_ptr->draw(window);
         }
     }
 
@@ -848,4 +823,73 @@ void Game::resolveTankCollision(Tank* tank1, Tank* tank2) {
     }
 }
 
+void Game::initializeBulletPool() {
+    m_bulletPool.clear(); // 如果可能被多次调用，先清空
+    m_bulletPool.reserve(INITIAL_BULLET_POOL_SIZE); // 预留空间，提高效率
 
+    // 为了创建 Bullet 对象，我们需要一个有效的纹理。
+    // 我们假设 "bullet_up" (或任何一个子弹纹理键) 此时必定已经加载。
+    // 如果没有，这将是一个严重问题，应该在 loadConfig 中处理。
+    const sf::Texture& defaultBulletTexture = getTexture("bullet_up"); // 获取一个默认的子弹纹理
+
+    if (defaultBulletTexture.getSize().x == 0 || defaultBulletTexture.getSize().y == 0) {
+        std::cerr << "CRITICAL ERROR: Default bullet texture ('bullet_up') is not loaded or invalid. Cannot pre-allocate bullet pool." << std::endl;
+        // 在这种情况下，getAvailableBullet() 可能会在尝试创建新子弹时失败。
+        // 或者，你可以选择在这里抛出异常或关闭游戏。
+        return;
+    }
+
+    std::cout << "Pre-allocating bullet pool with " << INITIAL_BULLET_POOL_SIZE << " bullets..." << std::endl;
+    for (size_t i = 0; i < INITIAL_BULLET_POOL_SIZE; ++i) {
+        // 创建子弹对象，并使用占位符/默认值进行初始化。
+        // 重要的是将 isAlive 设置为 false。
+        // 实际的参数（位置、方向、伤害等）将在从池中取出并调用 reset() 时设置。
+        auto bullet = std::make_unique<Bullet>(
+                defaultBulletTexture,        // 初始纹理
+                sf::Vector2f(0.f, 0.f),      // 初始位置 (占位)
+                Direction::UP,               // 初始方向 (占位)
+                sf::Vector2f(0.f, -1.f),     // 飞行向量 (占位)
+                0,                           // 伤害 (占位)
+                0.f,                         // 速度 (占位)
+                0                            // 类型 (占位)
+        );
+        bullet->setIsAlive(false); // **非常重要：新创建的池对象必须是不活跃的**
+        m_bulletPool.push_back(std::move(bullet));
+    }
+    std::cout << "Bullet pool pre-allocated. Size: " << m_bulletPool.size() << std::endl;
+}
+
+Bullet* Game::getAvailableBullet() {
+    // 1. 尝试找到一个不活跃的子弹并复用
+    for (const auto& bullet_ptr : m_bulletPool) {
+        if (bullet_ptr && !bullet_ptr->isAlive()) {
+            // bullet_ptr->setIsAlive(true); // 调用者在 reset 后会激活它
+            // std::cout << "Reusing bullet from pool." << std::endl;
+            return bullet_ptr.get();
+        }
+    }
+
+    // 2. 如果池中所有子弹都在使用中，则动态创建一个新的 (如果允许扩展)
+    // 你可以设置一个最大池大小上限 (例如 MAX_BULLET_POOL_SIZE) 来防止无限创建
+    // if (m_bulletPool.size() >= MAX_BULLET_POOL_SIZE) {
+    //    std::cerr << "Max bullet pool size reached. Cannot provide more bullets." << std::endl;
+    //    return nullptr;
+    // }
+
+    std::cout << "Bullet pool fully active, creating a new bullet instance." << std::endl;
+    const sf::Texture& defaultBulletTexture = getTexture("bullet_up"); // 再次确保纹理有效
+    if (defaultBulletTexture.getSize().x == 0) {
+        std::cerr << "CRITICAL ERROR: Default bullet texture for new bullet is invalid in getAvailableBullet!" << std::endl;
+        return nullptr;
+    }
+
+    auto new_bullet = std::make_unique<Bullet>(
+            defaultBulletTexture, sf::Vector2f(0.f, 0.f), Direction::UP, sf::Vector2f(0.f, -1.f), 0, 0.f, 0
+    );
+    // new_bullet->setIsAlive(true); // 调用者在 reset 时会激活它，这里创建后应该是“准备好被reset”的状态
+    new_bullet->setIsAlive(false); // 先设为不活跃，让调用者reset并激活
+    Bullet* raw_ptr = new_bullet.get();
+    m_bulletPool.push_back(std::move(new_bullet));
+    std::cout << "New bullet added to pool. Pool size: " << m_bulletPool.size() << std::endl;
+    return raw_ptr;
+}

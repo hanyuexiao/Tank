@@ -19,24 +19,17 @@ class Game;
 
 class AITank : public Tank {
 public:
-    // MODIFIED: 构造函数签名已更改
-    // 参数:
-    //   startPosition - AI 坦克的初始位置
-    //   direction - AI 坦克的初始方向
-    //   tankType - AI 坦克的类型字符串 (例如 "ai_default", "ai_heavy")，用于从 Game 获取纹理
-    //   game - 对 Game 对象的引用，用于获取纹理和其他游戏上下文
-    //   speed - AI 坦克的移动速度
-    //   frameWidth - 坦克纹理单帧宽度
-    //   frameHeight - 坦克纹理单帧高度
-    //   inihp - 初始生命值
     AITank(sf::Vector2f startPosition,
            Direction direction,
-           const std::string& tankType, // 新增：坦克类型，用于纹理查找
-           Game& game,                  // 新增：Game 对象的引用
-           float speed = 80.f,
-           int frameWidth = 50,
-           int frameHeight = 50,
-           int inihp = 100);
+           const std::string& tankType,
+           Game& game,
+           float baseSpeed,             // ***传入基础速度***
+           int baseHealth,              // ***传入基础生命值***
+           int baseAttack,           // ***传入基础攻击力***
+           int frameW,
+           int frameH
+            /*, 其他参数如 frameWidth, frameHeight 如果也想区分或默认 */
+    );
 
     // AI 决策：决定下一步要朝哪个方向移动（或者是否射击等）
     void decideNextAction(const Map& map, const Tank* playerTankRef);
@@ -95,7 +88,13 @@ private:
 
     sf::Time m_slowDebuffDuration; // 减速 debuff 的剩余持续时间
     bool m_isSlowDebuffActive;     // 标记减速 debuff 是否激活
+    static constexpr float HEALTH_RANDOM_FACTOR = 0.2f;  // 生命值上下浮动20%
+    static constexpr float SPEED_RANDOM_FACTOR = 0.15f; // 速度上下浮动15%
+    static constexpr float ATTACK_RANDOM_FACTOR = 0.25f; // 攻击力上下浮动25%
 
+    // 辅助方法，用于在一个范围内生成随机值
+    float getRandomValue(float base, float factor);
+    int getRandomValueInt(int base, float factor);
 
 };
 

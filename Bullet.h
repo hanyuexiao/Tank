@@ -42,6 +42,14 @@ public:
            int type /*, Tank* owner = nullptr */); // owner 可以是可选参数
 
     // 核心功能方法
+    void reset(const sf::Texture& texture,
+               sf::Vector2f startPosition,
+               Direction tankDirectionEnum,
+               sf::Vector2f flyDirectionVec,
+               int damage,
+               float speed,
+               int type /*, Tank* owner = nullptr */); // 重置子弹状态
+
     void update(sf::Time dt);            // 更新子弹状态 (移动等)，dt 是帧间隔时间。
     void draw(sf::RenderWindow &window) const; // 将子弹绘制到指定的渲染窗口
 

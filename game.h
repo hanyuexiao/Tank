@@ -56,7 +56,7 @@ public:
     PlayerTank* getPlayerTank() const { return m_playerTankPtr; }
     Map& getMap() { return m_map; }
     const Map& getMap() const { return m_map; }
-
+    Bullet* getAvailableBullet();
     // --- 纹理资源获取方法 ---
     const sf::Texture& getTexture(const std::string& key) const;
     const std::vector<sf::Texture>& getTankTextures(const std::string& tankType, Direction dir) const;
@@ -86,7 +86,9 @@ private:
     PlayerTank* m_playerTankPtr;
     std::vector<std::unique_ptr<Bullet>> m_bullets;
     std::vector<std::unique_ptr<Tools>> m_tools; // 存储游戏中所有道具
-
+    std::vector<std::unique_ptr<Bullet>> m_bulletPool; // 存储游戏中所有砖墙
+    const size_t INITIAL_BULLET_POOL_SIZE = 100;
+    void initializeBulletPool();
     // --- 资源缓存 ---
     nlohmann::json m_configJson;
     std::map<std::string, sf::Texture> m_textureCache;
@@ -113,9 +115,12 @@ private:
     int m_maxActiveAITanks;             // 屏幕上最大AI坦克数量
     std::string m_defaultAITankType;    // 默认生成的AI坦克类型 (从config加载)
     float m_defaultAITankSpeed;         // 默认生成的AI坦克速度
-
+    int m_defaultAIBaseHealth; // Game 成员变量
+    int m_defaultAIBaseAttack;
     void spawnNewAITank();              // 生成新AI坦克的方法
     void updateAITankSpawning(sf::Time dt); // 更新AI坦克生成计时器
+    int m_defaultAIFrameWidth;
+    int m_defaultAIFrameHeight;
 };
 
 #endif //TANKS_GAME_H

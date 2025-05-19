@@ -10,24 +10,65 @@
 #include <cmath>        // 用于 std::abs 等数学函数
 
 // MODIFIED: 构造函数实现，增加了 tankType 和 game 参数
-AITank::AITank(sf::Vector2f startPosition, Direction direction, const std::string& tankType, Game& game, float speed, int frameWidth, int frameHeight, int inihp)
-        : Tank(startPosition, direction, tankType, game, speed, frameWidth, frameHeight, inihp, 0 /*armor, 默认AI坦克护甲为0*/), // 调用基类 Tank 的构造函数
-          m_isMovingToNextTile(false),    // 初始化为不在格子间移动
-          m_hasStrategicTarget(false),    // 初始化为没有战略目标
-          m_aiShootTimer(sf::Time::Zero), // 初始化AI射击计时器
-          m_rng(std::random_device{}()),  // 初始化随机数生成器
-          m_cooldownDistribution(0.8f, 2.5f), // 初始化AI射击冷却时间分布 (例如0.8到2.5秒)
-          m_baseSpeedForDebuff(speed),    // 存储基础速度，用于debuff恢复
-          m_wasOriginalDistStored(false), // 初始化原始冷却分布存储标记
-          m_slowDebuffDuration(sf::Time::Zero), // 初始化debuff持续时间
-          m_isSlowDebuffActive(false)     // 初始化debuff激活状态
-{
-    // 存储原始的冷却分布，以便在debuff结束后恢复
-    m_originalCooldownDistribution = m_cooldownDistribution;
-    // std::cout << "AITank (type '" << getTankType() << "') created. Speed: " << m_speed << std::endl;
-    generateNewRandomCooldown(); // 生成初始的随机射击冷却时间
+float AITank::getRandomValue(float base, float factor) {
+    std::uniform_real_distribution<float> dist(-factor, factor);
+    return base * (1.0f + dist(m_rng)); // m_rng 是 AITank.h 中已有的随机数引擎
 }
 
+int AITank::getRandomValueInt(int base, float factor) {
+    std::uniform_real_distribution<float> dist(-factor, factor);
+    return static_cast<int>(static_cast<float>(base) * (1.0f + dist(m_rng)));
+}
+
+
+// 修改后的构造函数
+AITank::AITank(sf::Vector2f startPosition, Direction direction, const std::string& tankType, Game& game,
+               float baseSpeed, int baseHealth, int baseAttack,int frameW,int frameH) // ***接收基础属性***
+        : Tank(startPosition, direction, tankType, game,
+               1.0f, // 临时速度，会被下面随机化后的值覆盖
+               frameW,
+               frameH,
+               1,    // 临时生命值，会被下面随机化后的值覆盖
+               0     /*armor, 默认AI坦克护甲为0*/) ,
+          m_isMovingToNextTile(false),
+          m_hasStrategicTarget(false),
+          m_aiShootTimer(sf::Time::Zero),
+        // m_rng 在基类 Tank 的某个地方或者这里如果还没有则需要初始化: m_rng(std::random_device{}())
+        // 从 AITank.h 移除 m_rng 的声明，因为它已经在 Tank.h 中有了 m_rng(std::random_device{}())
+        // 哦，AITank.h 中的 m_rng 是独立的，用于AI决策的，Tank中没有。所以 AITank 中 m_rng 初始化保留。
+          m_cooldownDistribution(0.8f, 2.5f),
+          m_baseSpeedForDebuff(1.0f), // 会被下面的随机速度覆盖
+          m_wasOriginalDistStored(false),
+          m_slowDebuffDuration(sf::Time::Zero),
+          m_isSlowDebuffActive(false)
+{
+    // --- 属性随机化 ---
+    // 1. 生命值 (m_MaxHealth, m_health)
+    m_MaxHealth = std::max(10, getRandomValueInt(baseHealth, HEALTH_RANDOM_FACTOR)); // 保证 최소 10 HP
+    m_health = m_MaxHealth;
+
+    // 2. 速度 (m_baseSpeed, m_speed)
+    // Tank 基类的构造函数已经接收了 speed 参数并设置了 m_baseSpeed 和 m_speed。
+    // 我们需要覆盖它。
+    float randomizedBaseSpeed = std::max(10.0f, getRandomValue(baseSpeed, SPEED_RANDOM_FACTOR)); // 保证 최소 10 速度
+    Tank::setSpeed(randomizedBaseSpeed); // 使用我们之前讨论过的 setSpeed 来正确设置 m_baseSpeed, m_originalSpeed, m_speed
+    m_baseSpeedForDebuff = randomizedBaseSpeed; // 更新用于debuff的基础速度记录
+
+    // 3. 攻击力 (m_baseAttackPower, m_currentAttackPower)
+    m_baseAttackPower = std::max(5, getRandomValueInt(baseAttack, ATTACK_RANDOM_FACTOR)); // 保证 최소 5 攻击力
+    m_currentAttackPower = m_baseAttackPower;
+
+    // 确保 m_originalSpeed (在Tank类中) 也被正确设置，如果 setSpeed 没有处理它的话。
+    // Tank::setSpeed 的推荐实现是更新 m_baseSpeed 和 m_originalSpeed
+    // this->m_originalSpeed = this->m_baseSpeed; // 如果 Tank::setSpeed 没做这个
+
+    std::cout << "AITank (type '" << getTankType() << "') created with randomized stats. "
+              << "HP: " << m_health << "/" << m_MaxHealth
+              << ", Speed: " << m_speed // 或者 m_baseSpeed，取决于 setSpeed 的具体实现
+              << ", Attack: " << m_currentAttackPower << std::endl;
+
+    generateNewRandomCooldown();
+}
 // 生成一个新的随机射击冷却时间
 void AITank::generateNewRandomCooldown() {
     m_aiShootCooldown = sf::seconds(m_cooldownDistribution(m_rng)); // 从分布中抽取一个随机值作为冷却时间

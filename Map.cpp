@@ -213,7 +213,7 @@ bool Map::isTileWalkable(int tileX, int tileY) const {
     // 假设 ID 为 0 (草地) 的是可通行的
     // 其他 ID (1-砖, 2-钢, 3-基地) 是不可通行的
     int tileID = m_layout[tileY][tileX];
-    bool walkable = (tileID == 0);
+    bool walkable = (tileID == 0 || tileID == 5);
 //    std::cout << "Tile (" << tileX << "," << tileY << ") is " << (walkable ? "walkable" : "not walkable") << std::endl;
     return walkable;
 }
@@ -226,5 +226,14 @@ sf::Vector2i Map::getBaseTileCoordinate() const {
     std::cerr << "Map::getBaseTileCoordinate() called before map dimensions are set." << std::endl;
     return sf::Vector2i(-1, -1); // 表示无效或未找到
 }
+
+int Map::getTileType(int tileX, int tileY) const {
+    if(tileX < 0 || tileY < 0 || tileX >= m_mapWidth || tileY >= m_mapHeight) {
+        return -1; // 越界则返回无效类型
+    }
+    return m_layout[tileY][tileX];
+}
+
+
 
 // getTileWidth(), getTileHeight(), getMapWidth(), getMapHeight() 等 getter 方法保持不变

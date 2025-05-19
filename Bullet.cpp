@@ -114,7 +114,27 @@ sf::FloatRect Bullet::getBounds() const {
     return sf::FloatRect();
 }
 
-// (可选) 获取子弹的发射者
-// Tank* Bullet::getOwner() const {
-//     return m_owner;
-// }
+void Bullet::reset(const sf::Texture& texture,
+                   sf::Vector2f startPosition,
+                   Direction tankDirectionEnum,
+                   sf::Vector2f flyDirectionVec,
+                   int damage,
+                   float speed,
+                   int type) {
+    m_position = startPosition;
+    m_flyDirection = normalize(flyDirectionVec); // 确保再次标准化
+    m_tankDirection = tankDirectionEnum;
+    m_speed = speed;
+    m_damage = damage;
+    m_type = type;
+    m_isAlive = true; // 激活子弹
+
+    m_sprite.setTexture(texture); // 重新设置纹理（如果不同子弹类型纹理不同）
+    m_sprite.setPosition(m_position);
+    // 原点通常不需要重设，除非纹理尺寸变了
+    // sf::FloatRect bounds = m_sprite.getLocalBounds();
+    // m_sprite.setOrigin(bounds.width / 2.f, bounds.height / 2.f);
+    // m_sprite.setPosition(m_position); // 确保原点设置后位置正确
+
+    // std::cout << "Bullet reset. Type: " << m_type << ", Pos: (" << m_position.x << "," << m_position.y << ")" << std::endl;
+}

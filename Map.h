@@ -37,10 +37,10 @@ public:
     sf::Vector2i getBaseTileCoordinate() const;
     int getMapWidth() const { return m_mapWidth; }        // 确保有这些getter
     int getMapHeight() const { return m_mapHeight; }
+    int getTileType(int tileX, int tileY) const;       // 获取某格子的类型
 
     // 未来可能需要的函数:
     // bool isSolid(int tileX, int tileY);          // 检查某格子是否为固体墙
-    // int getTileType(int tileX, int tileY);       // 获取某格子的类型
     // void destroyTile(int tileX, int tileY);      // 销毁某个可破坏的图块
 };
 
