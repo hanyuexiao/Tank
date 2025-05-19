@@ -32,7 +32,7 @@ bool Map::load(Game& game) {
     } else {
         m_tileWidth = sampleTexture.getSize().x;
         m_tileHeight = sampleTexture.getSize().y;
-        std::cout << "Map tile size set from Game cache: " << m_tileWidth << "x" << m_tileHeight << std::endl;
+//        std::cout << "Map tile size set from Game cache: " << m_tileWidth << "x" << m_tileHeight << std::endl;
     }
 
     // 3. (可选) 验证所有必需的地图纹理是否已在 Game 中加载
@@ -47,7 +47,15 @@ bool Map::load(Game& game) {
     if (game.getTexture("map_base").getSize().x == 0) { // 假设 "map_base" 是基地的键
         std::cerr << "Map::load() - Warning: Base texture ('map_base') seems to be missing or invalid in Game cache." << std::endl;
     }
-
+    if(game.getTexture("map_grass").getSize().x == 0) { // 假设 "map_grass" 是草地的键
+        std::cerr << "Map::load() - Warning: Grass texture ('map_grass') seems to be missing or invalid in Game cache." << std::endl;
+    }
+    if(game.getTexture("map_water").getSize().x == 0) { // 假设 "map_water" 是水的键
+        std::cerr << "Map::load() - Warning: Water texture ('map_water') seems to be missing or invalid in Game cache." << std::endl;
+    }
+    if(game.getTexture("map_forest").getSize().x == 0) { // 假设 "map_forest" 是森林的键
+        std::cerr << "Map::load() - Warning: Forest texture ('map_forest') seems to be missing or invalid in Game cache." << std::endl;
+    }
 
     std::cout << "Map loaded successfully. Tile dimensions determined via Game object." << std::endl;
     return true; // 所有加载步骤完成
@@ -176,6 +184,8 @@ void Map::draw(sf::RenderWindow &window, Game& game) {
                 case 1: textureKey = "map_brick_wall"; break;  // 对应 JSON "brick_wall"
                 case 2: textureKey = "map_steel_wall"; break;  // 对应 JSON "steel_wall"
                 case 3: textureKey = "map_base"; break;        // 对应 JSON "base"
+                case 4: textureKey = "map_water"; break;       // 对应 JSON "water"
+                case 5: textureKey = "map_forest"; break;      // 对应 JSON "forest"
                 default:
                     // std::cerr << "Map::draw() Warning: Unknown tile ID " << tileID << " at (" << x << "," << y << ")" << std::endl;
                     continue; // 跳过未知ID 或绘制一个默认的错误图块
@@ -203,7 +213,9 @@ bool Map::isTileWalkable(int tileX, int tileY) const {
     // 假设 ID 为 0 (草地) 的是可通行的
     // 其他 ID (1-砖, 2-钢, 3-基地) 是不可通行的
     int tileID = m_layout[tileY][tileX];
-    return tileID == 0;
+    bool walkable = (tileID == 0);
+//    std::cout << "Tile (" << tileX << "," << tileY << ") is " << (walkable ? "walkable" : "not walkable") << std::endl;
+    return walkable;
 }
 
 sf::Vector2i Map::getBaseTileCoordinate() const {

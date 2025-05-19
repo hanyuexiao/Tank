@@ -84,7 +84,12 @@ void Tank::setDirection(Direction dir, Game& game) {
 
 // MODIFIED update to use textures from Game for animation
 void Tank::update(sf::Time dt, Game& game) {
-    // Animation update logic
+    // Animation update logic‘
+//    if (this->getTankType() == "player") { // 确保 getTankType() 返回 "player"
+//        std::cout << "PlayerTank::update() called. DeltaTime: " << dt.asSeconds()
+//                  << "s. Current shootTimer: " << m_shootTimer.asSeconds()
+//                  << "s. shootCooldown: " << m_shootCooldown.asSeconds() << "s." << std::endl;
+//    }
     const auto& frames = game.getTankTextures(m_tankType, m_direction);
     if (!frames.empty()) {
         // Assuming 2 frames for animation as in the original loadTextures logic.
@@ -141,7 +146,6 @@ void Tank::move(sf::Vector2f targetPosition, const Map& map) {
     sf::Sprite prospectiveSprite = m_sprite; // Sprite uses currently set texture
     prospectiveSprite.setPosition(targetPosition);
     sf::FloatRect originalTankBoundsAtTarget = prospectiveSprite.getGlobalBounds();
-
     const float shrinkValue = 2.f;
     sf::FloatRect checkingBounds = originalTankBoundsAtTarget;
 

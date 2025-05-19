@@ -24,20 +24,21 @@ protected:
     // 位置与移动
     sf::Vector2f m_position;             // 坦克在地图上的精确位置 (通常是左上角)
     Direction m_direction;               // 坦克当前的朝向 (UP, DOWN, LEFT, RIGHT)
-    float m_speed;                       // 坦克的移动速度 (像素/秒)
     float m_baseSpeed;
+    float m_speed;                       // 坦克的移动速度 (像素/秒)
     sf::Time m_movementSpeedBuffDuration;
     bool m_isMovementSpeedBuffActive;
     std::string m_tankType;           // 坦克类型，例如 "player", "enemy", "boss" 等
     // 射击相关
+    sf::Time m_baseShootCooldown;
+    sf::Time m_attackSpeedBuffDuration;
     sf::Time m_shootCooldown;            // 射击的最小时间间隔 (冷却时间)
     sf::Time m_shootTimer;               // 自上次射击以来经过的时间，用于计算冷却
     int m_baseAttackPower;
     int m_currentAttackPower;
     sf::Time m_attackBuffDuration;
     bool m_isAttackBuffActive;
-    sf::Time m_baseShootCooldown;
-    sf::Time m_attackSpeedBuffDuration;
+
     bool m_isAttackSpeedBuffActive;
 
     // 生命状态

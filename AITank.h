@@ -95,6 +95,8 @@ private:
 
     sf::Time m_slowDebuffDuration; // 减速 debuff 的剩余持续时间
     bool m_isSlowDebuffActive;     // 标记减速 debuff 是否激活
+
+
 };
 
 #endif //AITANK_H
