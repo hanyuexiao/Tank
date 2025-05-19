@@ -6,8 +6,9 @@
 #include <iostream> // 用于错误输出
 
 // --- 构造函数 ---
-Map::Map() : m_tileWidth(0), m_tileHeight(0), m_mapWidth(0), m_mapHeight(0) {
-    // 构造函数体可以为空，主要逻辑在 load() 中
+Map::Map() : m_tileWidth(0), m_tileHeight(0), m_mapWidth(0), m_mapHeight(0),
+            m_baseHealth(BASE_INITIAL_HEALTH),
+             m_isBaseDestroyed(false){
 }
 
 // --- 公开的加载函数 ---
@@ -71,7 +72,7 @@ void Map::initMapLayout() {
 
     // 初始化 m_layout 为全 0 (空地/草地)
     m_layout = std::vector<std::vector<int>>(m_mapHeight, std::vector<int>(m_mapWidth, 0));
-
+    m_tileHealth = std::vector<std::vector<int>>(m_mapHeight, std::vector<int>(m_mapWidth, 0)); // 初始化所有瓦片的健康值为 100
     // 1. --- 添加完整的边界钢墙 (ID 2) ---
     for (int y = 0; y < m_mapHeight; ++y) {
         for (int x = 0; x < m_mapWidth; ++x) {
@@ -101,11 +102,12 @@ void Map::initMapLayout() {
     // (这里的迷宫设计逻辑与之前相同，只是注释了ID对应的纹理键名)
     // 行 2
     for (int x = 1; x < m_mapWidth - 1; ++x) {
-        if (x > 2 && x < m_mapWidth - 3 && (x % 4 == 0 || x % 4 == 1) ) {
+        if (x > 2 && x < m_mapWidth - 3 && (x % 4 == 0 || x % 4 == 1)) {
             m_layout[2][x] = 1; // 砖墙
         }
     }
-    m_layout[2][m_mapWidth / 2 - 2] = 0; m_layout[2][m_mapWidth / 2 + 2] = 0;
+    m_layout[2][m_mapWidth / 2 - 2] = 0;
+    m_layout[2][m_mapWidth / 2 + 2] = 0;
 
     // 行 4
     for (int x = 1; x < m_mapWidth - 1; ++x) {
@@ -113,54 +115,98 @@ void Map::initMapLayout() {
             m_layout[4][x] = 1; // 砖墙
         }
     }
-    if (m_mapWidth > 6) { m_layout[4][3] = 0; m_layout[4][4] = 0; m_layout[4][m_mapWidth - 4] = 0; m_layout[4][m_mapWidth - 3] = 0;}
+    if (m_mapWidth > 6) {
+        m_layout[4][3] = 0;
+        m_layout[4][4] = 0;
+        m_layout[4][m_mapWidth - 4] = 0;
+        m_layout[4][m_mapWidth - 3] = 0;
+    }
 
     // 行 6 (一些垂直的墙)
-    int vWall1_X = m_mapWidth / 4; int vWall2_X = m_mapWidth * 3 / 4;
+    int vWall1_X = m_mapWidth / 4;
+    int vWall2_X = m_mapWidth * 3 / 4;
     for (int y = 1; y < 8; ++y) {
-        if (y == 0 || y == m_mapHeight -1) continue;
-        if (vWall1_X > 0 && vWall1_X < m_mapWidth -1) { m_layout[y][vWall1_X] = 1; m_layout[y][vWall1_X + 1] = 2; } // 砖, 钢
-        if (vWall2_X > 0 && vWall2_X < m_mapWidth -1) { m_layout[y][vWall2_X - 1] = 2; m_layout[y][vWall2_X] = 1; } // 钢, 砖
+        if (y == 0 || y == m_mapHeight - 1) continue;
+        if (vWall1_X > 0 && vWall1_X < m_mapWidth - 1) {
+            m_layout[y][vWall1_X] = 1;
+            m_layout[y][vWall1_X + 1] = 2;
+        } // 砖, 钢
+        if (vWall2_X > 0 && vWall2_X < m_mapWidth - 1) {
+            m_layout[y][vWall2_X - 1] = 2;
+            m_layout[y][vWall2_X] = 1;
+        } // 钢, 砖
     }
-    if (vWall1_X > 0 && vWall1_X < m_mapWidth -1) m_layout[5][vWall1_X] = 0;
-    if (vWall2_X > 0 && vWall2_X < m_mapWidth -1) m_layout[5][vWall2_X] = 0;
+    if (vWall1_X > 0 && vWall1_X < m_mapWidth - 1) m_layout[5][vWall1_X] = 0;
+    if (vWall2_X > 0 && vWall2_X < m_mapWidth - 1) m_layout[5][vWall2_X] = 0;
 
     // 行 8
-    for (int x = 1; x < m_mapWidth - 1; ++x) { if (x >= 5 && x <= m_mapWidth - 6 && x % 3 == 0) { m_layout[8][x] = 1;}} // 砖墙
-    if (m_mapWidth/2 > 0 && m_mapWidth/2 < m_mapWidth -1) m_layout[8][m_mapWidth/2] = 0;
+    for (int x = 1; x < m_mapWidth - 1; ++x) {
+        if (x >= 5 && x <= m_mapWidth - 6 && x % 3 == 0) { m_layout[8][x] = 1; }
+    } // 砖墙
+    if (m_mapWidth / 2 > 0 && m_mapWidth / 2 < m_mapWidth - 1) m_layout[8][m_mapWidth / 2] = 0;
 
     // 行 10
-    for (int x = 1; x < m_mapWidth - 1; ++x) { if ( !(x > m_mapWidth/2 -3 && x < m_mapWidth/2+3) && (x > 3 && x < m_mapWidth -4 && (x % 6 <= 3) )) { m_layout[10][x] = 1;}} // 砖墙
+    for (int x = 1; x < m_mapWidth - 1; ++x) {
+        if (!(x > m_mapWidth / 2 - 3 && x < m_mapWidth / 2 + 3) && (x > 3 && x < m_mapWidth - 4 &&
+                                                                    (x % 6 <= 3))) { m_layout[10][x] = 1; }
+    } // 砖墙
 
     // 行 12 (靠近基地，m_mapHeight-3)
     if (m_mapHeight > 3) {
         for (int x = 1; x < m_mapWidth - 1; ++x) {
-            if ( !(x >= basePosX - 2 && x <= basePosX + 2) && (x > 1 && x < m_mapWidth -2 && (x % 4 == 0 || x % 4 == 1) )) {
+            if (!(x >= basePosX - 2 && x <= basePosX + 2) &&
+                (x > 1 && x < m_mapWidth - 2 && (x % 4 == 0 || x % 4 == 1))) {
                 m_layout[m_mapHeight - 3][x] = 1; // 砖墙
             }
         }
         if (basePosX - 3 > 0) m_layout[m_mapHeight - 3][basePosX - 3] = 2; // 钢墙
-        if (basePosX + 3 < m_mapWidth -1) m_layout[m_mapHeight - 3][basePosX + 3] = 2; // 钢墙
+        if (basePosX + 3 < m_mapWidth - 1) m_layout[m_mapHeight - 3][basePosX + 3] = 2; // 钢墙
     }
 
     // 一些内部的钢墙块 (ID 2)
-    if (m_mapHeight > 4 && m_mapWidth > 7) { m_layout[3][5] = 2; m_layout[3][m_mapWidth - 6] = 2;}
-    if (m_mapHeight > 8 && m_mapWidth > 10) { m_layout[7][8] = 2; m_layout[7][m_mapWidth - 9] = 2;}
-    if (m_mapHeight > 12 && m_mapWidth > 5) { m_layout[11][3] = 2; m_layout[11][m_mapWidth - 4] = 2;}
+    if (m_mapHeight > 4 && m_mapWidth > 7) {
+        m_layout[3][5] = 2;
+        m_layout[3][m_mapWidth - 6] = 2;
+    }
+    if (m_mapHeight > 8 && m_mapWidth > 10) {
+        m_layout[7][8] = 2;
+        m_layout[7][m_mapWidth - 9] = 2;
+    }
+    if (m_mapHeight > 12 && m_mapWidth > 5) {
+        m_layout[11][3] = 2;
+        m_layout[11][m_mapWidth - 4] = 2;
+    }
 
     // 4. --- 确保玩家和AI出生点可通行且在边界内 ---
     if (m_mapHeight > 3 && m_mapWidth > 3) {
-        m_layout[1][1] = 0; m_layout[1][2] = 0; m_layout[1][3] = 0;
-        m_layout[2][1] = 0; m_layout[2][2] = 0;
+        m_layout[1][1] = 0;
+        m_layout[1][2] = 0;
+        m_layout[1][3] = 0;
+        m_layout[2][1] = 0;
+        m_layout[2][2] = 0;
         m_layout[3][1] = 0;
     }
     if (m_mapHeight > 3 && m_mapWidth > 3) {
-        m_layout[1][m_mapWidth - 2] = 0; m_layout[1][m_mapWidth - 3] = 0; m_layout[1][m_mapWidth - 4] = 0;
-        m_layout[2][m_mapWidth - 2] = 0; m_layout[2][m_mapWidth - 3] = 0;
+        m_layout[1][m_mapWidth - 2] = 0;
+        m_layout[1][m_mapWidth - 3] = 0;
+        m_layout[1][m_mapWidth - 4] = 0;
+        m_layout[2][m_mapWidth - 2] = 0;
+        m_layout[2][m_mapWidth - 3] = 0;
         m_layout[3][m_mapWidth - 2] = 0;
     }
 
     std::cout << "Map layout initialized (" << m_mapHeight << "x" << m_mapWidth << ")." << std::endl;
+
+    for (int y = 0; y < m_mapHeight; y++) {
+        for (int x = 0; x < m_mapWidth; x++) {
+            if (m_layout[y][x] == 1) {
+                m_tileHealth[y][x] = BRICK_INITIAL_HEALTH;
+            }
+        }
+    }
+
+    m_baseHealth = BASE_INITIAL_HEALTH;
+    m_isBaseDestroyed = false;
 }
 
 // --- 绘制函数 ---
@@ -177,18 +223,40 @@ void Map::draw(sf::RenderWindow &window, Game& game) {
             int tileID = m_layout[y][x];
             std::string textureKey;
 
-            // 将 tileID 映射到 Game 缓存中纹理的键名
-            // 这个映射必须与你在 Game::loadConfig 中加载纹理时使用的键名一致
-            switch(tileID) {
-                case 0: textureKey = "map_grass"; break;       // 对应 JSON "grass"
-                case 1: textureKey = "map_brick_wall"; break;  // 对应 JSON "brick_wall"
-                case 2: textureKey = "map_steel_wall"; break;  // 对应 JSON "steel_wall"
-                case 3: textureKey = "map_base"; break;        // 对应 JSON "base"
-                case 4: textureKey = "map_water"; break;       // 对应 JSON "water"
-                case 5: textureKey = "map_forest"; break;      // 对应 JSON "forest"
-                default:
-                    // std::cerr << "Map::draw() Warning: Unknown tile ID " << tileID << " at (" << x << "," << y << ")" << std::endl;
-                    continue; // 跳过未知ID 或绘制一个默认的错误图块
+            if (tileID == 1) { // 如果是石砖墙
+                int health = m_tileHealth[y][x];
+                if (health == 3) {
+                    textureKey = "map_brick_wall";
+                } else if (health == 2) {
+                    textureKey = "map_brick_wall_damaged1"; // 假设你已将其添加到 config.json
+                } else if (health == 1) {
+                    textureKey = "map_brick_wall_damaged2"; // 假设你已将其添加到 config.json
+                } else { // health <= 0, 但 tileID 此时可能还未变为0 (如果刚被摧毁，会在这次绘制后改变)
+                    textureKey = "map_grass"; // 或者，如果它已被完全摧毁并且 tileID 将变为0，则跳过绘制
+                }
+            } else {
+                // 将 tileID 映射到 Game 缓存中纹理的键名
+                // 这个映射必须与你在 Game::loadConfig 中加载纹理时使用的键名一致
+                switch (tileID) {
+                    case 0:
+                        textureKey = "map_grass";
+                        break;       // 对应 JSON "grass"
+                    case 2:
+                        textureKey = "map_steel_wall";
+                        break;  // 对应 JSON "steel_wall"
+                    case 3:
+                        textureKey = "map_base";
+                        break;        // 对应 JSON "base"
+                    case 4:
+                        textureKey = "map_water";
+                        break;       // 对应 JSON "water"
+                    case 5:
+                        textureKey = "map_forest";
+                        break;      // 对应 JSON "forest"
+                    default:
+                        // std::cerr << "Map::draw() Warning: Unknown tile ID " << tileID << " at (" << x << "," << y << ")" << std::endl;
+                        continue; // 跳过未知ID 或绘制一个默认的错误图块
+                }
             }
 
             const sf::Texture& texture = game.getTexture(textureKey); // 从 Game 获取纹理
@@ -206,18 +274,6 @@ void Map::draw(sf::RenderWindow &window, Game& game) {
     }
 }
 
-bool Map::isTileWalkable(int tileX, int tileY) const {
-    if(tileX < 0 || tileY < 0 || tileX >= m_mapWidth || tileY >= m_mapHeight) {
-        return false; // 越界则不可行走
-    }
-    // 假设 ID 为 0 (草地) 的是可通行的
-    // 其他 ID (1-砖, 2-钢, 3-基地) 是不可通行的
-    int tileID = m_layout[tileY][tileX];
-    bool walkable = (tileID == 0 || tileID == 5);
-//    std::cout << "Tile (" << tileX << "," << tileY << ") is " << (walkable ? "walkable" : "not walkable") << std::endl;
-    return walkable;
-}
-
 sf::Vector2i Map::getBaseTileCoordinate() const {
     if (m_mapWidth > 0 && m_mapHeight > 0) {
         // 根据 initMapLayout，基地核心 (ID 3) 在: m_layout[m_mapHeight - 1][m_mapWidth / 2]
@@ -227,13 +283,78 @@ sf::Vector2i Map::getBaseTileCoordinate() const {
     return sf::Vector2i(-1, -1); // 表示无效或未找到
 }
 
-int Map::getTileType(int tileX, int tileY) const {
+void Map::resetMap(Game &game) {
+    initMapLayout();
+    std::cout << "Map reset." << std::endl;
+}
+
+int Map::getTileHeath(int tileX, int tileY) const {
     if(tileX < 0 || tileY < 0 || tileX >= m_mapWidth || tileY >= m_mapHeight) {
         return -1; // 越界则返回无效类型
     }
-    return m_layout[tileY][tileX];
+    return m_tileHealth[tileY][tileX];
 }
 
+void Map::damageTile(int tileX, int tileY, int damage, Game& game) {
+    if (tileX < 0 || tileY < 0 || tileX >= m_mapWidth || tileY >= m_mapHeight) {
+        return; // 超出边界
+    }
 
+    if (m_layout[tileY][tileX] == 1) { // 如果是石砖墙 (ID 1)
+        if (m_tileHealth[tileY][tileX] > 0) {
+            m_tileHealth[tileY][tileX] -= damage;
+            std::cout << "Brick at (" << tileX << "," << tileY << ") damaged. Health: " << m_tileHealth[tileY][tileX] << std::endl;
+
+            if (m_tileHealth[tileY][tileX] <= 0) {
+                m_layout[tileY][tileX] = 0; // 变为草地/空格
+                m_tileHealth[tileY][tileX] = 0; // 确保健康值不为负
+                std::cout << "Brick at (" << tileX << "," << tileY << ") destroyed." << std::endl;
+                // 这里可以通知 Game 更新寻路或其他游戏逻辑
+            }
+        }
+    }
+}
+
+void Map::damageBase(int damage) {
+    if (!m_isBaseDestroyed) {
+        m_baseHealth -= damage;
+        std::cout << "Base damaged. Health: " << m_baseHealth << std::endl;
+        if (m_baseHealth <= 0) {
+            m_baseHealth = 0;
+            m_isBaseDestroyed = true;
+            std::cout << "Base DESTROYED!" << std::endl;
+            // Game Over 逻辑将在 Game 类中处理
+        }
+    }
+}
+
+int Map::getBaseHealth() const {
+    return m_baseHealth;
+}
+
+bool Map::isBaseDestroyed() const {
+    return m_isBaseDestroyed;
+}
+
+// isTileWalkable 需要检查 m_layout
+bool Map::isTileWalkable(int tileX, int tileY) const {
+    if(tileX < 0 || tileY < 0 || tileX >= m_mapWidth || tileY >= m_mapHeight) {
+        return false; // 超出边界
+    }
+    int tileID = m_layout[tileY][tileX];
+    // 原始逻辑: walkable = (tileID == 0 || tileID == 5);
+    // 如果石砖被摧毁 (tileID 变为 0)，它就是可通行的。
+    // 基地 (ID 3) 和钢墙 (ID 2) 不可通行。
+    // 石砖墙 (ID 1) 只要其ID为1就不可通行。
+    return (tileID == 0 || tileID == 5); // 草地或森林
+}
+
+// getTileType 保持不变，它从 m_layout 返回ID
+int Map::getTileType(int tileX, int tileY) const {
+    if(tileX < 0 || tileY < 0 || tileX >= m_mapWidth || tileY >= m_mapHeight) {
+        return -1; // 超出边界返回无效类型
+    }
+    return m_layout[tileY][tileX];
+}
 
 // getTileWidth(), getTileHeight(), getMapWidth(), getMapHeight() 等 getter 方法保持不变

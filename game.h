@@ -121,6 +121,7 @@ private:
     void updateAITankSpawning(sf::Time dt); // 更新AI坦克生成计时器
     int m_defaultAIFrameWidth;
     int m_defaultAIFrameHeight;
+    void setGameOver();
 };
 
 #endif //TANKS_GAME_H

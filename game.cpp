@@ -693,7 +693,17 @@ void Game::update(sf::Time dt) {
 
             if (tileX >= 0 && tileX < m_map.getMapWidth() && tileY >= 0 && tileY < m_map.getMapHeight()) {
                 int tileTypeHit = m_map.getTileType(tileX, tileY);
-                if (tileTypeHit == 1 || tileTypeHit == 2 || tileTypeHit == 3) { // 砖墙, 钢墙, 基地
+                if (tileTypeHit == 1) {
+                    m_map.damageTile(tileX, tileY,1,*this);
+                    bullet_ptr->setIsAlive(false);}
+                else if(tileTypeHit == 3){
+                    m_map.damageTile(tileX, tileY,bullet_ptr->getDamage(),*this);
+                    bullet_ptr->setIsAlive(false);
+                    if(m_map.isBaseDestroyed()){
+                        std::cout << "Base destroyed!" << std::endl;
+                        state = GameState::GameOver;
+                    }
+                }else if(tileTypeHit == 2) {
                     bullet_ptr->setIsAlive(false);
                 }
             } else {
@@ -747,9 +757,22 @@ void Game::update(sf::Time dt) {
             // window.close(); // 简单处理：直接关闭窗口
         }
     }
+    // 8.检查基地是否被摧毁
+    if (m_map.isBaseDestroyed() && state != GameState::GameOver) { // 检查基地是否已被摧毁
+        std::cout << "Game Over! Base was destroyed." << std::endl;
+        // state = GameState::GameOver; // 切换到游戏结束状态
+        // window.close(); // 或者暂时直接关闭窗口
+        // 在这里通常会停止游戏更新或显示游戏结束画面
+    }
 
-    // 8. 其他游戏逻辑 (例如检查游戏胜利/失败条件)
-    // 检查基地是否被摧毁等
+    // 如果游戏已结束，你可能想跳过后续的更新
+    if (state == GameState::GameOver) {
+        // 这里可以处理游戏结束画面的更新或重新开始/退出的输入
+        return;
+    }
+
+    // 9. 其他游戏逻辑 (例如检查游戏胜利/失败条件)
+
     // ...
 }
 
@@ -893,3 +916,4 @@ Bullet* Game::getAvailableBullet() {
     std::cout << "New bullet added to pool. Pool size: " << m_bulletPool.size() << std::endl;
     return raw_ptr;
 }
+

@@ -14,17 +14,22 @@ class Game;
 class Map {
 private:
     std::vector<std::vector<int>> m_layout;         // 地图布局 (整数编码)
-    // std::map<int, sf::Texture> m_textures;       // REMOVED: 纹理现在由 Game 类管理
+    std::vector<std::vector<int>> m_tileHealth;
     sf::Sprite m_tileSprite;                        // 用于绘制的复用精灵
     int m_tileWidth;                                // 图块宽度 (像素)
     int m_tileHeight;                               // 图块高度 (像素)
     int m_mapWidth;                                 // 地图宽度 (格子数)
     int m_mapHeight;                                // 地图高度 (格子数)
 
+    int m_baseHealth; // 地图上每个图块的基础生命值
+    bool m_isBaseDestroyed;
     // bool loadTextures();                         // REMOVED: 纹理加载逻辑移至 Game 类
     void initMapLayout();                           // 将初始化布局变为私有辅助函数
 
 public:
+
+    static const int BRICK_INITIAL_HEALTH = 3;
+    static const int BASE_INITIAL_HEALTH = 200;
     Map();                                          // 构造函数
     // MODIFIED: load 方法现在需要 Game 引用来获取图块尺寸等信息
     bool load(Game& game);
@@ -39,9 +44,13 @@ public:
     int getMapHeight() const { return m_mapHeight; }
     int getTileType(int tileX, int tileY) const;       // 获取某格子的类型
 
-    // 未来可能需要的函数:
-    // bool isSolid(int tileX, int tileY);          // 检查某格子是否为固体墙
-    // void destroyTile(int tileX, int tileY);      // 销毁某个可破坏的图块
+    int getTileHeath(int tileX, int tileY) const;
+    void damageTile(int tileX, int tileY, int damage,Game& game);
+    void damageBase(int damage);
+    int getBaseHealth() const;
+    bool isBaseDestroyed() const;
+    void resetMap(Game& game);
+
 };
 
 #endif //TANKS_MAP_H
